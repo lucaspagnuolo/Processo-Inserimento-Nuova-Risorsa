@@ -7,11 +7,6 @@ import io
 # ------------------------------------------------------------
 # Caricamento configurazione da Excel caricato dall'utente
 # ------------------------------------------------------------
-# Attendere che l'utente carichi un file Excel con fogli: OU, InserimentoGruppi, Defaults
-# OU: colonne [key, label]
-# InserimentoGruppi: colonne [app, gruppi]
-# Defaults: colonne [key, value]
-
 def load_config_from_bytes(data: bytes):
     cfg = pd.read_excel(io.BytesIO(data), sheet_name=None)
     # Mappa key→label per OU
@@ -52,7 +47,6 @@ def formatta_data(data: str) -> str:
             continue
     return data
 
-
 def genera_samaccountname(nome: str, cognome: str,
                          secondo_nome: str = "", secondo_cognome: str = "",
                          esterno: bool = False) -> str:
@@ -65,7 +59,6 @@ def genera_samaccountname(nome: str, cognome: str,
     cand = f"{(n[:1])}{(sn[:1])}.{c}{sc}"
     if len(cand) <= limit: return cand + suffix
     return (f"{n[:1]}{sn[:1]}.{c}")[:limit] + suffix
-
 
 def build_full_name(cognome: str, secondo_cognome: str,
                     nome: str, secondo_nome: str,
@@ -86,19 +79,21 @@ HEADER = [
 # ------------------------------------------------------------
 st.subheader("Modulo Inserimento Nuova Risorsa Interna")
 
-# Input base
-nome            = st.text_input("Nome").strip().capitalize()
-secondo_nome    = st.text_input("Secondo Nome").strip().capitalize()
-cognome         = st.text_input("Cognome").strip().capitalize()
-secondo_cognome = st.text_input("Secondo Cognome").strip().capitalize()
-numero_telefono = st.text_input("Numero di Telefono", "").replace(" ", "")
-description     = st.text_input("Description (lascia vuoto per <PC>)", "<PC>").strip()
-codice_fiscale  = st.text_input("Codice Fiscale", "").strip()
+# Input ordinati e rinominati
+employee_id        = st.text_input("Matricola", defaults.get("employee_id_default", "")).strip()
+cognome            = st.text_input("Cognome").strip().capitalize()
+secondo_cognome    = st.text_input("Secondo Cognome").strip().capitalize()
+nome               = st.text_input("Nome").strip().capitalize()
+secondo_nome       = st.text_input("Secondo Nome").strip().capitalize()
+codice_fiscale     = st.text_input("Codice Fiscale", "").strip()
+department         = st.text_input("Sigla Divisione-Area", defaults.get("department_default", "")).strip()
+numero_telefono    = st.text_input("Mobile", "").replace(" ", "")
+description        = st.text_input("PC (lascia vuoto per <PC>)", "<PC>").strip()
 
-# OU a tendina da config
+# OU a tendina da config (rinominato come Tipologia Utente)
 ou_labels    = list(ou_options.values())
 default_ou   = defaults.get("ou_default", ou_labels[0] if ou_labels else "")
-label_ou     = st.selectbox("OU", options=ou_labels,
+label_ou     = st.selectbox("Tipologia Utente", options=ou_labels,
                              index=ou_labels.index(default_ou) if default_ou in ou_labels else 0)
 selected_ou_key = list(ou_options.keys())[ou_labels.index(label_ou)]
 ou_value     = ou_options[selected_ou_key]
@@ -107,12 +102,8 @@ ou_value     = ou_options[selected_ou_key]
 inserimento_gruppo = gruppi.get("interna", "")
 telephone_number   = defaults.get("telephone_interna", "")
 company            = defaults.get("company_interna", "")
-# Fields modificabili via input per utente
-employee_id        = st.text_input("Employee ID", defaults.get("employee_id_default", "")).strip()
-department         = st.text_input("Dipartimento", defaults.get("department_default", "")).strip()
 
 if st.button("Genera CSV Interna"):
-    # Generazione dati
     sAM = genera_samaccountname(nome, cognome, secondo_nome, secondo_cognome, False)
     cn  = build_full_name(cognome, secondo_cognome, nome, secondo_nome, False)
     row = [
