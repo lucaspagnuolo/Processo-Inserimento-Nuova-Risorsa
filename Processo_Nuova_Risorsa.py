@@ -10,29 +10,36 @@ import io
 def load_config_from_bytes(data: bytes):
     # Legge solo il foglio “Risorsa Interna”
     cfg = pd.read_excel(io.BytesIO(data), sheet_name="Risorsa Interna")
-    # Separa le tre sezioni in base alla colonna “Section”
-    ou_df   = cfg[cfg["Section"] == "OU"][["Key/App", "Label/Gruppi/Value"]].rename(
-                 columns={"Key/App": "key", "Label/Gruppi/Value": "label"})
-    grp_df  = cfg[cfg["Section"] == "InserimentoGruppi"][["Key/App", "Label/Gruppi/Value"]].rename(
-                 columns={"Key/App": "app", "Label/Gruppi/Value": "gruppi"})
-    def_df  = cfg[cfg["Section"] == "Defaults"][["Key/App", "Label/Gruppi/Value"]].rename(
-                 columns={"Key/App": "key", "Label/Gruppi/Value": "value"})
-
+    # Sezione OU
+    ou_df = cfg[cfg["Section"] == "OU"][["Key/App", "Label/Gruppi/Value"]].rename(
+        columns={"Key/App": "key", "Label/Gruppi/Value": "label"}
+    )
     ou_options = dict(zip(ou_df["key"], ou_df["label"]))
-    gruppi     = dict(zip(grp_df["app"], grp_df["gruppi"]))
-    defaults   = dict(zip(def_df["key"], def_df["value"]))
+
+    # Sezione InserimentoGruppi
+    grp_df = cfg[cfg["Section"] == "InserimentoGruppi"][["Key/App", "Label/Gruppi/Value"]].rename(
+        columns={"Key/App": "app", "Label/Gruppi/Value": "gruppi"}
+    )
+    gruppi = dict(zip(grp_df["app"], grp_df["gruppi"]))
+
+    # Sezione Defaults
+    def_df = cfg[cfg["Section"] == "Defaults"][["Key/App", "Label/Gruppi/Value"]].rename(
+        columns={"Key/App": "key", "Label/Gruppi/Value": "value"}
+    )
+    defaults = dict(zip(def_df["key"], def_df["value"]))
+
     return ou_options, gruppi, defaults
 
 # ------------------------------------------------------------
 # App 1.1: Nuova Risorsa Interna
 # ------------------------------------------------------------
 st.set_page_config(page_title="1.1 Nuova Risorsa Interna")
-st.title("1.1 Nuova Risorsa Interna – Configurable")
+st.title("1.1 Nuova Risorsa Interna")
 
 config_file = st.file_uploader(
-    "Carica il file di configurazione (config.xlsx)",
+    "Carica il file di configurazione (config_corrected.xlsx)",
     type=["xlsx"],
-    help="Deve contenere il foglio “Risorsa Interna”"
+    help="Deve contenere il foglio “Risorsa Interna” con campo Section"
 )
 if not config_file:
     st.warning("Per favore carica il file di configurazione per continuare.")
@@ -104,6 +111,7 @@ label_ou     = st.selectbox("Tipologia Utente", options=ou_labels,
 selected_ou_key = list(ou_options.keys())[ou_labels.index(label_ou)]
 ou_value     = ou_options[selected_ou_key]
 
+# Ora popola correttamente InserimentoGruppo
 inserimento_gruppo = gruppi.get("interna", "")
 telephone_number   = defaults.get("telephone_interna", "")
 company            = defaults.get("company_interna", "")
