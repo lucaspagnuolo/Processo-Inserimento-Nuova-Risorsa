@@ -8,26 +8,22 @@ import io
 # Caricamento configurazione da Excel caricato dall'utente
 # ------------------------------------------------------------
 def load_config_from_bytes(data: bytes):
-    # Legge solo il foglio “Risorsa Interna”
     cfg = pd.read_excel(io.BytesIO(data), sheet_name="Risorsa Interna")
     # Sezione OU
     ou_df = cfg[cfg["Section"] == "OU"][["Key/App", "Label/Gruppi/Value"]].rename(
         columns={"Key/App": "key", "Label/Gruppi/Value": "label"}
     )
     ou_options = dict(zip(ou_df["key"], ou_df["label"]))
-
     # Sezione InserimentoGruppi
     grp_df = cfg[cfg["Section"] == "InserimentoGruppi"][["Key/App", "Label/Gruppi/Value"]].rename(
         columns={"Key/App": "app", "Label/Gruppi/Value": "gruppi"}
     )
     gruppi = dict(zip(grp_df["app"], grp_df["gruppi"]))
-
     # Sezione Defaults
     def_df = cfg[cfg["Section"] == "Defaults"][["Key/App", "Label/Gruppi/Value"]].rename(
         columns={"Key/App": "key", "Label/Gruppi/Value": "value"}
     )
     defaults = dict(zip(def_df["key"], def_df["value"]))
-
     return ou_options, gruppi, defaults
 
 # ------------------------------------------------------------
@@ -111,7 +107,6 @@ label_ou     = st.selectbox("Tipologia Utente", options=ou_labels,
 selected_ou_key = list(ou_options.keys())[ou_labels.index(label_ou)]
 ou_value     = ou_options[selected_ou_key]
 
-# Ora popola correttamente InserimentoGruppo
 inserimento_gruppo = gruppi.get("interna", "")
 telephone_number   = defaults.get("telephone_interna", "")
 company            = defaults.get("company_interna", "")
@@ -122,20 +117,43 @@ company            = defaults.get("company_interna", "")
 if st.button("Genera CSV Interna"):
     sAM = genera_samaccountname(nome, cognome, secondo_nome, secondo_cognome, False)
     cn  = build_full_name(cognome, secondo_cognome, nome, secondo_nome, False)
+    given = f"{nome} {secondo_nome}".strip()
+    surn  = f"{cognome} {secondo_cognome}".strip()
+    mobile = f"+39 {numero_telefono}" if numero_telefono else ""
+    telnum = telephone_number
+
     row = [
-        sAM, "SI", ou_value, cn.replace(" (esterno)", ""), cn, cn,
-        f"{nome} {secondo_nome}".strip(),
-        f"{cognome} {secondo_cognome}".strip(),
-        codice_fiscale, employee_id, department,
-        description or "<PC>", "No", "",
-        f"{sAM}@consip.it", f"{sAM}@consip.it",
-        f"+39 {numero_telefono}" if numero_telefono else "",
-        "", inserimento_gruppo, "", "",
-        telephone_number, company
+        sAM, "SI", ou_value,                      # index 0,1,2
+        cn.replace(" (esterno)", ""),             # 3 → Name
+        cn,                                       # 4 → DisplayName
+        cn,                                       # 5 → cn
+        given,                                    # 6 → GivenName
+        surn,                                     # 7 → Surname
+        codice_fiscale, employee_id, department,  # 8,9,10
+        description or "<PC>", "No", "",          # 11,12,13
+        f"{sAM}@consip.it", f"{sAM}@consip.it",  # 14,15
+        mobile,                                  # 16 → mobile
+        "", inserimento_gruppo, "", "",          # 17,18,19,20
+        telnum,                                  # 21 → telephoneNumber
+        company                                  # 22
     ]
 
+    # Avvolgi tra virgolette i campi richiesti
+    # OU (idx 2), Name (3), DisplayName (4), cn (5)
+    for i in (2, 3, 4, 5):
+        row[i] = f"\"{row[i]}\""
+    # GivenName (6) solo se secondo_nome non vuoto
+    if secondo_nome:
+        row[6] = f"\"{row[6]}\""
+    # Surname (7) solo se secondo_cognome non vuoto
+    if secondo_cognome:
+        row[7] = f"\"{row[7]}\""
+    # mobile (16) e telephoneNumber (21)
+    for i in (16, 21):
+        row[i] = f"\"{row[i]}\""
+
     buf = io.StringIO()
-    writer = csv.writer(buf, quoting=csv.QUOTE_MINIMAL)
+    writer = csv.writer(buf, quoting=csv.QUOTE_NONE, escapechar="\\")
     writer.writerow(HEADER)
     writer.writerow(row)
     buf.seek(0)
