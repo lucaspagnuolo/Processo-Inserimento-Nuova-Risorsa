@@ -112,6 +112,49 @@ telephone_number   = defaults.get("telephone_interna", "")
 company            = defaults.get("company_interna", "")
 
 # ------------------------------------------------------------
+# Nuovi campi richiesti
+# ------------------------------------------------------------
+st.subheader("Configurazione Profilazione DL e Data Operatività")
+# Testo multilinea per DL, una DL per riga
+dl_lines = st.text_area("DL su cui profilare", "", placeholder="Inserisci una DL per riga").splitlines()
+
+# Data in input nel formato gg/mm/aaaa
+data_operativa = st.text_input("Giorno in cui diventa operativo (gg/mm/aaaa):", "").strip()
+
+# Preview messaggio
+if st.button("Anteprima Messaggio"):
+    # Preparazione dei valori base
+    sAM = genera_samaccountname(nome, cognome, secondo_nome, secondo_cognome, False)
+    cn  = build_full_name(cognome, secondo_cognome, nome, secondo_nome, False)
+    # Costruzione elenco DL
+    dl_bullet = "".join([f"• {dl}\n" for dl in dl_lines if dl.strip()])
+    # Messaggio
+    msg = (
+        f"Ciao.\n"
+        f"Richiedo cortesemente la definizione di una casella di posta come sottoindicato.\n"
+        f"\n"
+        f"Tipo Utenza \tRemota\n"
+        f"Utenza \t{sAM}\n"
+        f"Alias\t{sAM}\n"
+        f"Display name\t{cn}\n"
+        f"Common name\t{cn}\n"
+        f"e-mail\t{sAM}@consip.it\n"
+        f"e-mail secondaria\t{sAM}@consipspa.mail.onmicrosoft.com\n"
+        f"\n"
+        f"Inviare batch di notifica migrazione mail a: imac@consip.it\n"
+        f"Aggiungere utenza di dominio ai gruppi\n"
+        f"•\tO365 Utenti Standard\n"
+        f"•\tO365 Teams Premium\n"
+        f"•\tO365 Copilot Plus\n"
+        f"\n"
+        f"Il giorno {data_operativa} occorre inserire la casella nelle DL:\n"
+        f"{dl_bullet}\n"
+        f"Grazie\n"
+        f"Saluti"
+    )
+    st.text_area("Anteprima Messaggio", msg, height=400)
+
+# ------------------------------------------------------------
 # Generazione CSV
 # ------------------------------------------------------------
 if st.button("Genera CSV Interna"):
@@ -123,32 +166,27 @@ if st.button("Genera CSV Interna"):
     telnum = telephone_number
 
     row = [
-        sAM, "SI", ou_value,                      # index 0,1,2
-        cn.replace(" (esterno)", ""),             # 3 → Name
-        cn,                                       # 4 → DisplayName
-        cn,                                       # 5 → cn
-        given,                                    # 6 → GivenName
-        surn,                                     # 7 → Surname
-        codice_fiscale, employee_id, department,  # 8,9,10
-        description or "<PC>", "No", "",          # 11,12,13
-        f"{sAM}@consip.it", f"{sAM}@consip.it",  # 14,15
-        mobile,                                  # 16 → mobile
-        "", inserimento_gruppo, "", "",          # 17,18,19,20
-        telnum,                                  # 21 → telephoneNumber
-        company                                  # 22
+        sAM, "SI", ou_value,
+        cn.replace(" (esterno)", ""),
+        cn,
+        cn,
+        given,
+        surn,
+        codice_fiscale, employee_id, department,
+        description or "<PC>", "No", "",
+        f"{sAM}@consip.it", f"{sAM}@consip.it",
+        mobile,
+        "", inserimento_gruppo, "", "",
+        telnum,
+        company
     ]
 
-    # Avvolgi tra virgolette i campi richiesti
-    # OU (idx 2), Name (3), DisplayName (4), cn (5)
     for i in (2, 3, 4, 5):
         row[i] = f"\"{row[i]}\""
-    # GivenName (6) solo se secondo_nome non vuoto
     if secondo_nome:
         row[6] = f"\"{row[6]}\""
-    # Surname (7) solo se secondo_cognome non vuoto
     if secondo_cognome:
         row[7] = f"\"{row[7]}\""
-    # mobile (16) e telephoneNumber (21)
     for i in (16, 21):
         row[i] = f"\"{row[i]}\""
 
