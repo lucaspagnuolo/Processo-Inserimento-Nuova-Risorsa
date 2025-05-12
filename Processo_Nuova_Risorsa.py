@@ -117,7 +117,6 @@ company            = defaults.get("company_interna", "")
 st.subheader("Configurazione Profilazione DL e Data Operatività")
 # Testo multilinea per DL, una DL per riga
 dl_lines = st.text_area("DL su cui profilare", "", placeholder="Inserisci una DL per riga").splitlines()
-
 # Data in input nel formato gg/mm/aaaa
 data_operativa = st.text_input("Giorno in cui diventa operativo (gg/mm/aaaa):", "").strip()
 
@@ -126,33 +125,28 @@ if st.button("Anteprima Messaggio"):
     # Preparazione dei valori base
     sAM = genera_samaccountname(nome, cognome, secondo_nome, secondo_cognome, False)
     cn  = build_full_name(cognome, secondo_cognome, nome, secondo_nome, False)
+    # Tabella iniziale
+    table_md = f"""
+| Campo             | Valore                                     |
+|-------------------|--------------------------------------------|
+| Tipo Utenza       | Remota                                     |
+| Utenza            | {sAM}                                      |
+| Alias             | {sAM}                                      |
+| Display name      | {cn}                                       |
+| Common name       | {cn}                                       |
+| e-mail            | {sAM}@consip.it                            |
+| e-mail secondaria | {sAM}@consipspa.mail.onmicrosoft.com      |
+"""
+    st.markdown(table_md)
+    # Resto del messaggio
+    st.markdown("Inviare batch di notifica migrazione mail a: imac@consip.it  ")
+    st.markdown("Aggiungere utenza di dominio ai gruppi:\n- O365 Utenti Standard  \n- O365 Teams Premium  \n- O365 Copilot Plus")
     # Costruzione elenco DL
-    dl_bullet = "".join([f"• {dl}\n" for dl in dl_lines if dl.strip()])
-    # Messaggio
-    msg = (
-        f"Ciao.\n"
-        f"Richiedo cortesemente la definizione di una casella di posta come sottoindicato.\n"
-        f"\n"
-        f"Tipo Utenza \tRemota\n"
-        f"Utenza \t{sAM}\n"
-        f"Alias\t{sAM}\n"
-        f"Display name\t{cn}\n"
-        f"Common name\t{cn}\n"
-        f"e-mail\t{sAM}@consip.it\n"
-        f"e-mail secondaria\t{sAM}@consipspa.mail.onmicrosoft.com\n"
-        f"\n"
-        f"Inviare batch di notifica migrazione mail a: imac@consip.it\n"
-        f"Aggiungere utenza di dominio ai gruppi\n"
-        f"•\tO365 Utenti Standard\n"
-        f"•\tO365 Teams Premium\n"
-        f"•\tO365 Copilot Plus\n"
-        f"\n"
-        f"Il giorno {data_operativa} occorre inserire la casella nelle DL:\n"
-        f"{dl_bullet}\n"
-        f"Grazie\n"
-        f"Saluti"
-    )
-    st.text_area("Anteprima Messaggio", msg, height=400)
+    if dl_lines:
+        st.markdown(f"Il giorno **{data_operativa}** occorre inserire la casella nelle DL:")
+        for dl in dl_lines:
+            if dl.strip(): st.markdown(f"- {dl}")
+    st.markdown("Grazie  \nSaluti")
 
 # ------------------------------------------------------------
 # Generazione CSV
