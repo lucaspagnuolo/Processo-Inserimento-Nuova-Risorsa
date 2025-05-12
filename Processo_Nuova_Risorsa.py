@@ -114,15 +114,21 @@ company            = defaults.get("company_interna", "")
 # ------------------------------------------------------------
 # Nuovi campi richiesti
 # ------------------------------------------------------------
-st.subheader("Configurazione Profilazione DL e Data Operatività")
-# Testo multilinea per DL, una DL per riga
+st.subheader("Configurazione Profilazione DL, SM e Data Operatività")
+# DL multilinea
 dl_lines = st.text_area("DL su cui profilare", "", placeholder="Inserisci una DL per riga").splitlines()
-# Data in input nel formato gg/mm/aaaa
+# Profilazione SM flag e multilinea
+profilazione_flag = st.checkbox("Deve essere profilato su qualche SM?")
+sm_lines = []
+if profilazione_flag:
+    sm_lines = st.text_area("SM su quali va profilato", "", placeholder="Inserisci una SM per riga").splitlines()
+# Data operatività
 data_operativa = st.text_input("Giorno in cui diventa operativo (gg/mm/aaaa):", "").strip()
 
-# Preview messaggio
+# ------------------------------------------------------------
+# Preview Messaggio
+# ------------------------------------------------------------
 if st.button("Anteprima Messaggio"):
-    # Preparazione dei valori base
     sAM = genera_samaccountname(nome, cognome, secondo_nome, secondo_cognome, False)
     cn  = build_full_name(cognome, secondo_cognome, nome, secondo_nome, False)
     # Tabella iniziale
@@ -137,16 +143,20 @@ if st.button("Anteprima Messaggio"):
 | e-mail            | {sAM}@consip.it                            |
 | e-mail secondaria | {sAM}@consipspa.mail.onmicrosoft.com      |
 """
-    st.markdown("Ciao.\n Richiedo cortesemente la definizione di una casella di posta come sottoindicato.")
+    st.markdown("Ciao.  \nRichiedo cortesemente la definizione di una casella di posta come sottoindicato.")
     st.markdown(table_md)
-    # Resto del messaggio
     st.markdown("Inviare batch di notifica migrazione mail a: imac@consip.it  ")
     st.markdown("Aggiungere utenza di dominio ai gruppi:\n- O365 Utenti Standard  \n- O365 Teams Premium  \n- O365 Copilot Plus")
-    # Costruzione elenco DL
+    # DL
     if dl_lines:
         st.markdown(f"Il giorno **{data_operativa}** occorre inserire la casella nelle DL:")
         for dl in dl_lines:
             if dl.strip(): st.markdown(f"- {dl}")
+    # SM
+    if profilazione_flag and sm_lines:
+        st.markdown("Profilare su SM:")
+        for sm in sm_lines:
+            if sm.strip(): st.markdown(f"- {sm}")
     st.markdown("Grazie  \nSaluti")
 
 # ------------------------------------------------------------
@@ -161,29 +171,25 @@ if st.button("Genera CSV Interna"):
     telnum = telephone_number
 
     row = [
-        sAM, "SI", ou_value,
-        cn.replace(" (esterno)", ""),
-        cn,
-        cn,
-        given,
-        surn,
-        codice_fiscale, employee_id, department,
-        description or "<PC>", "No", "",
-        f"{sAM}@consip.it", f"{sAM}@consip.it",
-        mobile,
-        "", inserimento_gruppo, "", "",
-        telnum,
-        company
+        sAM, "SI", ou_value,                      # 0,1,2
+        cn.replace(" (esterno)", ""),            # 3
+        cn,                                        # 4
+        cn,                                        # 5
+        given,                                     # 6
+        surn,                                      # 7
+        codice_fiscale, employee_id, department,   # 8,9,10
+        description or "<PC>", "No", "",     #11,12,13
+        f"{sAM}@consip.it", f"{sAM}@consip.it",#14,15
+        mobile,                                     #16
+        "", inserimento_gruppo, "", "",       #17,18,19,20
+        telnum,                                    #21
+        company                                    #22
     ]
-
-    for i in (2, 3, 4, 5):
-        row[i] = f"\"{row[i]}\""
-    if secondo_nome:
-        row[6] = f"\"{row[6]}\""
-    if secondo_cognome:
-        row[7] = f"\"{row[7]}\""
-    for i in (16, 21):
-        row[i] = f"\"{row[i]}\""
+    # Quote
+    for i in (2,3,4,5): row[i] = f"\"{row[i]}\""
+    if secondo_nome: row[6] = f"\"{row[6]}\""
+    if secondo_cognome: row[7] = f"\"{row[7]}\""
+    for i in (16,21): row[i] = f"\"{row[i]}\""
 
     buf = io.StringIO()
     writer = csv.writer(buf, quoting=csv.QUOTE_NONE, escapechar="\\")
