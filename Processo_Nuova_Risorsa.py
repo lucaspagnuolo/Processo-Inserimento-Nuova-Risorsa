@@ -104,7 +104,7 @@ description        = st.text_input("PC (lascia vuoto per <PC>)", "<PC>").strip()
 resident_flag      = st.checkbox("È Resident?")
 numero_fisso_input = ""
 if resident_flag:
-    numero_fisso_input = st.text_input("Numero fisso", "").strip()
+    numero_fisso_input = st.text_input("Numero fisso Resident (+39 già inserito)", "").strip()
 
 # Se prefisso fisso andiamo a formattare con +39
 telephone_default  = defaults.get("telephone_interna", "")
