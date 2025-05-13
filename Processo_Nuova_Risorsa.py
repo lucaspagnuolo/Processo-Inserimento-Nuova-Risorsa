@@ -33,7 +33,7 @@ st.set_page_config(page_title="1.1 Nuova Risorsa Interna")
 st.title("1.1 Nuova Risorsa Interna")
 
 config_file = st.file_uploader(
-    "Carica il file di configurazione (config.xlsx)",
+    "Carica il file di configurazione (config_corrected.xlsx)",
     type=["xlsx"],
     help="Deve contenere il foglio “Risorsa Interna” con campo Section"
 )
@@ -100,6 +100,12 @@ department         = st.text_input("Sigla Divisione-Area", defaults.get("departm
 numero_telefono    = st.text_input("Mobile", "").replace(" ", "")
 description        = st.text_input("PC (lascia vuoto per <PC>)", "<PC>").strip()
 
+# Flag Resident e Numero Fisso
+resident_flag      = st.checkbox("È Resident?")
+numero_fisso       = ""
+if resident_flag:
+    numero_fisso   = st.text_input("Numero fisso", "").strip()
+
 ou_labels    = list(ou_options.values())
 default_ou   = defaults.get("ou_default", ou_labels[0] if ou_labels else "")
 label_ou     = st.selectbox("Tipologia Utente", options=ou_labels,
@@ -108,21 +114,19 @@ selected_ou_key = list(ou_options.keys())[ou_labels.index(label_ou)]
 ou_value     = ou_options[selected_ou_key]
 
 inserimento_gruppo = gruppi.get("interna", "")
-telephone_number   = defaults.get("telephone_interna", "")
+telephone_default  = defaults.get("telephone_interna", "")
+telephone_number   = numero_fisso if resident_flag and numero_fisso else telephone_default
 company            = defaults.get("company_interna", "")
 
 # ------------------------------------------------------------
-# Nuovi campi richiesti
+# Nuovi campi: DL, SM, Data
 # ------------------------------------------------------------
 st.subheader("Configurazione Profilazione DL, SM e Data Operatività")
-# DL multilinea
 dl_lines = st.text_area("DL su cui profilare", "", placeholder="Inserisci una DL per riga").splitlines()
-# Profilazione SM flag e multilinea
 profilazione_flag = st.checkbox("Deve essere profilato su qualche SM?")
 sm_lines = []
 if profilazione_flag:
     sm_lines = st.text_area("SM su quali va profilato", "", placeholder="Inserisci una SM per riga").splitlines()
-# Data operatività
 data_operativa = st.text_input("Giorno in cui diventa operativo (gg/mm/aaaa):", "").strip()
 
 # ------------------------------------------------------------
@@ -143,16 +147,15 @@ if st.button("Anteprima Messaggio"):
 | e-mail            | {sAM}@consip.it                            |
 | e-mail secondaria | {sAM}@consipspa.mail.onmicrosoft.com      |
 """
-    st.markdown("Ciao.  \nRichiedo cortesemente la definizione di una casella di posta come sottoindicato.")
+    st.markdown("Ciao.  
+Richiedo cortesemente la definizione di una casella di posta come sottoindicato.")
     st.markdown(table_md)
     st.markdown("Inviare batch di notifica migrazione mail a: imac@consip.it  ")
     st.markdown("Aggiungere utenza di dominio ai gruppi:\n- O365 Utenti Standard  \n- O365 Teams Premium  \n- O365 Copilot Plus")
-    # DL
     if dl_lines:
         st.markdown(f"Il giorno **{data_operativa}** occorre inserire la casella nelle DL:")
         for dl in dl_lines:
             if dl.strip(): st.markdown(f"- {dl}")
-    # SM
     if profilazione_flag and sm_lines:
         st.markdown("Profilare su SM:")
         for sm in sm_lines:
@@ -168,24 +171,19 @@ if st.button("Genera CSV Interna"):
     given = f"{nome} {secondo_nome}".strip()
     surn  = f"{cognome} {secondo_cognome}".strip()
     mobile = f"+39 {numero_telefono}" if numero_telefono else ""
-    telnum = telephone_number
 
     row = [
-        sAM, "SI", ou_value,                      # 0,1,2
-        cn.replace(" (esterno)", ""),            # 3
-        cn,                                        # 4
-        cn,                                        # 5
-        given,                                     # 6
-        surn,                                      # 7
-        codice_fiscale, employee_id, department,   # 8,9,10
-        description or "<PC>", "No", "",     #11,12,13
-        f"{sAM}@consip.it", f"{sAM}@consip.it",#14,15
-        mobile,                                     #16
-        "", inserimento_gruppo, "", "",       #17,18,19,20
-        telnum,                                    #21
-        company                                    #22
+        sAM, "SI", ou_value,
+        cn.replace(" (esterno)", ""),
+        cn, cn, given, surn,
+        codice_fiscale, employee_id, department,
+        description or "<PC>", "No", "",
+        f"{sAM}@consip.it", f"{sAM}@consip.it",
+        mobile,
+        "", inserimento_gruppo, "", "",
+        f"{telephone_number}",
+        company
     ]
-    # Quote
     for i in (2,3,4,5): row[i] = f"\"{row[i]}\""
     if secondo_nome: row[6] = f"\"{row[6]}\""
     if secondo_cognome: row[7] = f"\"{row[7]}\""
