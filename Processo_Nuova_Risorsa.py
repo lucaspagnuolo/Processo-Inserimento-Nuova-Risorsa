@@ -33,7 +33,7 @@ st.set_page_config(page_title="1.1 Nuova Risorsa Interna")
 st.title("1.1 Nuova Risorsa Interna")
 
 config_file = st.file_uploader(
-    "Carica il file di configurazione (config_corrected.xlsx)",
+    "Carica il file di configurazione (config.xlsx)",
     type=["xlsx"],
     help="Deve contenere il foglio “Risorsa Interna” con campo Section"
 )
