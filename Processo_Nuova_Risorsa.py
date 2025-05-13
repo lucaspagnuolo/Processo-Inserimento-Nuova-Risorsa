@@ -33,7 +33,7 @@ st.set_page_config(page_title="1.1 Nuova Risorsa Interna")
 st.title("1.1 Nuova Risorsa Interna")
 
 config_file = st.file_uploader(
-    "Carica il file di configurazione (config.xlsx)",
+    "Carica il file di configurazione (config_corrected.xlsx)",
     type=["xlsx"],
     help="Deve contenere il foglio “Risorsa Interna” con campo Section"
 )
@@ -102,9 +102,13 @@ description        = st.text_input("PC (lascia vuoto per <PC>)", "<PC>").strip()
 
 # Flag Resident e Numero Fisso
 resident_flag      = st.checkbox("È Resident?")
-numero_fisso       = ""
+numero_fisso_input = ""
 if resident_flag:
-    numero_fisso   = st.text_input("Numero fisso", "").strip()
+    numero_fisso_input = st.text_input("Numero fisso", "").strip()
+
+# Se prefisso fisso andiamo a formattare con +39
+telephone_default  = defaults.get("telephone_interna", "")
+telephone_number   = f"+39 {numero_fisso_input}" if resident_flag and numero_fisso_input else telephone_default
 
 ou_labels    = list(ou_options.values())
 default_ou   = defaults.get("ou_default", ou_labels[0] if ou_labels else "")
@@ -114,8 +118,6 @@ selected_ou_key = list(ou_options.keys())[ou_labels.index(label_ou)]
 ou_value     = ou_options[selected_ou_key]
 
 inserimento_gruppo = gruppi.get("interna", "")
-telephone_default  = defaults.get("telephone_interna", "")
-telephone_number   = numero_fisso if resident_flag and numero_fisso else telephone_default
 company            = defaults.get("company_interna", "")
 
 # ------------------------------------------------------------
@@ -135,7 +137,6 @@ data_operativa = st.text_input("Giorno in cui diventa operativo (gg/mm/aaaa):", 
 if st.button("Anteprima Messaggio"):
     sAM = genera_samaccountname(nome, cognome, secondo_nome, secondo_cognome, False)
     cn  = build_full_name(cognome, secondo_cognome, nome, secondo_nome, False)
-    # Tabella iniziale
     table_md = f"""
 | Campo             | Valore                                     |
 |-------------------|--------------------------------------------|
@@ -146,8 +147,9 @@ if st.button("Anteprima Messaggio"):
 | Common name       | {cn}                                       |
 | e-mail            | {sAM}@consip.it                            |
 | e-mail secondaria | {sAM}@consipspa.mail.onmicrosoft.com      |
+| telephoneNumber   | {telephone_number}                        |
 """
-    st.markdown("Ciao. Richiedo cortesemente la definizione di una casella di posta come sottoindicato.")
+    st.markdown("Ciao.  \nRichiedo cortesemente la definizione di una casella di posta come sottoindicato.")
     st.markdown(table_md)
     st.markdown("Inviare batch di notifica migrazione mail a: imac@consip.it  ")
     st.markdown("Aggiungere utenza di dominio ai gruppi:\n- O365 Utenti Standard  \n- O365 Teams Premium  \n- O365 Copilot Plus")
@@ -180,7 +182,7 @@ if st.button("Genera CSV Interna"):
         f"{sAM}@consip.it", f"{sAM}@consip.it",
         mobile,
         "", inserimento_gruppo, "", "",
-        f"{telephone_number}",
+        telephone_number,
         company
     ]
     for i in (2,3,4,5): row[i] = f"\"{row[i]}\""
