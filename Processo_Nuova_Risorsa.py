@@ -44,14 +44,14 @@ if not config_file:
 ou_options, gruppi, defaults = load_config_from_bytes(config_file.read())
 
 # Lettura DL default da Defaults
-dl_standard = defaults.get("dl_standard", "").split(";")  # utenti.consip@...;...
-dl_vip = defaults.get("dl_vip", "").split(";")      # utenti.consip@...;...
+dl_standard = defaults.get("dl_standard", "").split(";")
+dl_vip = defaults.get("dl_vip", "").split(";")
 
 # Estrazione gruppi O365 da Defaults
 o365_groups = [
     defaults.get("grp_o365_standard", "O365 Utenti Standard"),
-    defaults.get("grp_o365_teams", "O365 Teams Premium"),
-    defaults.get("grp_o365_copilot", "O365 Copilot Plus")
+    defaults.get("grp_o365_teams",    "O365 Teams Premium"),
+    defaults.get("grp_o365_copilot",  "O365 Copilot Plus")
 ]
 
 # ------------------------------------------------------------
@@ -131,9 +131,19 @@ inserimento_gruppo = gruppi.get("interna", "")
 company            = defaults.get("company_interna", "")
 
 # ------------------------------------------------------------
-# Parametri in base alla Tipologia UT
+# Altri campi richiesti
 # ------------------------------------------------------------
-selected_tipologia = label_ou_key  # e.g. 'utenti_standard' o 'utenti_vip'
+st.subheader("Configurazione Data Operatività e Profilazione SM")
+data_operativa   = st.text_input("In che giorno prende operatività? (gg/mm/aaaa)", "").strip()
+profilazione_flag = st.checkbox("Deve essere profilato su qualche SM?")
+sm_lines = []
+if profilazione_flag:
+    sm_lines = st.text_area("SM su quali va profilato", "", placeholder="Inserisci una SM per riga").splitlines()
+
+# ------------------------------------------------------------
+# Selezione DL in base a tipologia
+# ------------------------------------------------------------
+selected_tipologia = label_ou_key
 if selected_tipologia == 'utenti_standard':
     dl_list = dl_standard
 elif selected_tipologia == 'utenti_vip':
@@ -163,13 +173,18 @@ if st.button("Template per Posta Elettronica"):
 """
     st.markdown("Ciao.  \nRichiedo cortesemente la definizione di una casella di posta come sottoindicato.")
     st.markdown(table_md)
-    st.markdown(f"Inviare batch di notifica migrazione mail a: imac@consip.it  \n" + 
+    st.markdown(f"Inviare batch di notifica migrazione mail a: imac@consip.it  \n" +
                 f"Aggiungere utenza di dominio ai gruppi:\n{groups_md}")
     # DL default
     if dl_list:
-        st.markdown("Case da inserire nelle DL (default):")
+        st.markdown(f"Il giorno **{data_operativa}** occorre inserire la casella nelle DL:")
         for dl in dl_list:
             if dl.strip(): st.markdown(f"- {dl}")
+    # Profilazione SM
+    if profilazione_flag and sm_lines:
+        st.markdown("Profilare su SM:")
+        for sm in sm_lines:
+            if sm.strip(): st.markdown(f"- {sm}")
     st.markdown("Grazie  \nSaluti")
 
 # ------------------------------------------------------------
