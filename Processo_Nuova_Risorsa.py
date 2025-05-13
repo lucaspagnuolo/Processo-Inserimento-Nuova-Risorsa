@@ -147,8 +147,7 @@ if st.button("Anteprima Messaggio"):
 | e-mail            | {sAM}@consip.it                            |
 | e-mail secondaria | {sAM}@consipspa.mail.onmicrosoft.com      |
 """
-    st.markdown("Ciao.  
-Richiedo cortesemente la definizione di una casella di posta come sottoindicato.")
+    st.markdown("Ciao. Richiedo cortesemente la definizione di una casella di posta come sottoindicato.")
     st.markdown(table_md)
     st.markdown("Inviare batch di notifica migrazione mail a: imac@consip.it  ")
     st.markdown("Aggiungere utenza di dominio ai gruppi:\n- O365 Utenti Standard  \n- O365 Teams Premium  \n- O365 Copilot Plus")
