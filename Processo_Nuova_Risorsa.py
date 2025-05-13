@@ -42,17 +42,32 @@ if not config_file:
     st.stop()
 
 ou_options, gruppi, defaults = load_config_from_bytes(config_file.read())
+# ------------------------------------------------------------
+# Lettura configurations aggiuntive
+# ------------------------------------------------------------
+dl_standard   = defaults.get("dl_standard", "").split(";")
+dl_vip        = defaults.get("dl_vip", "").split(";")
+o365_groups   = [
+    defaults.get("grp_o365_standard", "O365 Utenti Standard"),
+    defaults.get("grp_o365_teams",    "O365 Teams Premium"),
+    defaults.get("grp_o365_copilot",  "O365 Copilot Plus")
+]
+# Nuovi Default per Azure e Pillole
+grp_foorban   = defaults.get("grp_foorban", "Foorban_Users")
+pillole       = defaults.get("pillole",     "Pillole formative Teams Premium")
 
 # Lettura DL default da Defaults
 dl_standard = defaults.get("dl_standard", "").split(";")
-dl_vip = defaults.get("dl_vip", "").split(";")
-
+dl_vip      = defaults.get("dl_vip",     "").split(";")
 # Estrazione gruppi O365 da Defaults
 o365_groups = [
     defaults.get("grp_o365_standard", "O365 Utenti Standard"),
     defaults.get("grp_o365_teams",    "O365 Teams Premium"),
     defaults.get("grp_o365_copilot",  "O365 Copilot Plus")
 ]
+# Nuovi Default per Azure e Pillole
+grp_foorban = defaults.get("grp_foorban", "Foorban_Users")
+pillole     = defaults.get("pillole",     "Pillole formative Teams Premium")
 
 # ------------------------------------------------------------
 # Utility functions
@@ -185,6 +200,7 @@ if st.button("Template per Posta Elettronica"):
         st.markdown("Profilare su SM:")
         for sm in sm_lines:
             if sm.strip(): st.markdown(f"- {sm}")
+    # Aggiunta Azure e Pillole
     st.markdown(f"Aggiungere utenza al:\n- gruppo Azure: {grp_foorban}\n- canale {pillole}")
     st.markdown("Grazie  \nSaluti")
 
