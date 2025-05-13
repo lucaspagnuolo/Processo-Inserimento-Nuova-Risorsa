@@ -146,8 +146,8 @@ if st.button("Anteprima Messaggio"):
 | Display name      | {cn}                                       |
 | Common name       | {cn}                                       |
 | e-mail            | {sAM}@consip.it                            |
-| e-mail secondaria | {sAM}@consipspa.mail.onmicrosoft.com      |
-| cell              | f"+39 {numero_telefono}"                       |
+| e-mail secondaria | {sAM}@consipspa.mail.onmicrosoft.com       |
+| cell              | +39 {numero_telefono}                      |
 """
     st.markdown("Ciao.  \nRichiedo cortesemente la definizione di una casella di posta come sottoindicato.")
     st.markdown(table_md)
