@@ -35,13 +35,17 @@ st.title("1.1 Nuova Risorsa Interna")
 config_file = st.file_uploader(
     "Carica il file di configurazione (config.xlsx)",
     type=["xlsx"],
-    help="Deve contenere il foglio “Risorsa Interna" con campo Section"
+    help="Deve contenere il foglio “Risorsa Interna” con campo Section"
 )
 if not config_file:
     st.warning("Per favore carica il file di configurazione per continuare.")
     st.stop()
 
 ou_options, gruppi, defaults = load_config_from_bytes(config_file.read())
+
+# Lettura DL default da Defaults
+dl_standard = defaults.get("dl_standard", "").split(";")  # utenti.consip@...;...
+dl_vip = defaults.get("dl_vip", "").split(";")      # utenti.consip@...;...
 
 # Estrazione gruppi O365 da Defaults
 o365_groups = [
@@ -112,30 +116,30 @@ resident_flag      = st.checkbox("È Resident?")
 numero_fisso_input = ""
 if resident_flag:
     numero_fisso_input = st.text_input("Numero fisso Resident (+39 già inserito)", "").strip()
-
 telephone_default  = defaults.get("telephone_interna", "")
 telephone_number   = f"+39 {numero_fisso_input}" if resident_flag and numero_fisso_input else telephone_default
 
+# Tipologia Utente
 ou_labels    = list(ou_options.values())
 default_ou   = defaults.get("ou_default", ou_labels[0] if ou_labels else "")
+label_ou_key = list(ou_options.keys())[ou_labels.index(default_ou)]
 label_ou     = st.selectbox("Tipologia Utente", options=ou_labels,
                              index=ou_labels.index(default_ou) if default_ou in ou_labels else 0)
-selected_ou_key = list(ou_options.keys())[ou_labels.index(label_ou)]
-ou_value     = ou_options[selected_ou_key]
+ou_value     = ou_options[label_ou_key]
 
 inserimento_gruppo = gruppi.get("interna", "")
 company            = defaults.get("company_interna", "")
 
 # ------------------------------------------------------------
-# Nuovi campi: DL, SM, Data
+# Parametri in base alla Tipologia UT
 # ------------------------------------------------------------
-st.subheader("Configurazione Profilazione DL, SM e Data Operatività")
-dl_lines = st.text_area("DL su cui profilare", "", placeholder="Inserisci una DL per riga").splitlines()
-profilazione_flag = st.checkbox("Deve essere profilato su qualche SM?")
-sm_lines = []
-if profilazione_flag:
-    sm_lines = st.text_area("SM su quali va profilato", "", placeholder="Inserisci una SM per riga").splitlines()
-data_operativa = st.text_input("Giorno in cui diventa operativo (gg/mm/aaaa):", "").strip()
+selected_tipologia = label_ou_key  # e.g. 'utenti_standard' o 'utenti_vip'
+if selected_tipologia == 'utenti_standard':
+    dl_list = dl_standard
+elif selected_tipologia == 'utenti_vip':
+    dl_list = dl_vip
+else:
+    dl_list = []
 
 # ------------------------------------------------------------
 # Preview Messaggio
@@ -143,7 +147,6 @@ data_operativa = st.text_input("Giorno in cui diventa operativo (gg/mm/aaaa):", 
 if st.button("Template per Posta Elettronica"):
     sAM = genera_samaccountname(nome, cognome, secondo_nome, secondo_cognome, False)
     cn  = build_full_name(cognome, secondo_cognome, nome, secondo_nome, False)
-    # Costruzione elenco gruppi da config
     groups_md = "\n".join([f"- {g}" for g in o365_groups])
 
     table_md = f"""
@@ -160,15 +163,13 @@ if st.button("Template per Posta Elettronica"):
 """
     st.markdown("Ciao.  \nRichiedo cortesemente la definizione di una casella di posta come sottoindicato.")
     st.markdown(table_md)
-    st.markdown(f"Inviare batch di notifica migrazione mail a: imac@consip.it  \n" + f"Aggiungere utenza di dominio ai gruppi:\n{groups_md}")
-    if dl_lines:
-        st.markdown(f"Il giorno **{data_operativa}** occorre inserire la casella nelle DL:")
-        for dl in dl_lines:
+    st.markdown(f"Inviare batch di notifica migrazione mail a: imac@consip.it  \n" + 
+                f"Aggiungere utenza di dominio ai gruppi:\n{groups_md}")
+    # DL default
+    if dl_list:
+        st.markdown("Case da inserire nelle DL (default):")
+        for dl in dl_list:
             if dl.strip(): st.markdown(f"- {dl}")
-    if profilazione_flag and sm_lines:
-        st.markdown("Profilare su SM:")
-        for sm in sm_lines:
-            if sm.strip(): st.markdown(f"- {sm}")
     st.markdown("Grazie  \nSaluti")
 
 # ------------------------------------------------------------
