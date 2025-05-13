@@ -185,6 +185,7 @@ if st.button("Template per Posta Elettronica"):
         st.markdown("Profilare su SM:")
         for sm in sm_lines:
             if sm.strip(): st.markdown(f"- {sm}")
+    st.markdown(f"Aggiungere utenza al:\n- gruppo Azure: {grp_foorban}\n- canale {pillole}")
     st.markdown("Grazie  \nSaluti")
 
 # ------------------------------------------------------------
