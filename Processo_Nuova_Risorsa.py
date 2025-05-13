@@ -35,13 +35,20 @@ st.title("1.1 Nuova Risorsa Interna")
 config_file = st.file_uploader(
     "Carica il file di configurazione (config.xlsx)",
     type=["xlsx"],
-    help="Deve contenere il foglio “Risorsa Interna” con campo Section"
+    help="Deve contenere il foglio “Risorsa Interna" con campo Section"
 )
 if not config_file:
     st.warning("Per favore carica il file di configurazione per continuare.")
     st.stop()
 
 ou_options, gruppi, defaults = load_config_from_bytes(config_file.read())
+
+# Estrazione gruppi O365 da Defaults
+o365_groups = [
+    defaults.get("grp_o365_standard", "O365 Utenti Standard"),
+    defaults.get("grp_o365_teams", "O365 Teams Premium"),
+    defaults.get("grp_o365_copilot", "O365 Copilot Plus")
+]
 
 # ------------------------------------------------------------
 # Utility functions
@@ -106,7 +113,6 @@ numero_fisso_input = ""
 if resident_flag:
     numero_fisso_input = st.text_input("Numero fisso Resident (+39 già inserito)", "").strip()
 
-# Se prefisso fisso andiamo a formattare con +39
 telephone_default  = defaults.get("telephone_interna", "")
 telephone_number   = f"+39 {numero_fisso_input}" if resident_flag and numero_fisso_input else telephone_default
 
@@ -137,6 +143,9 @@ data_operativa = st.text_input("Giorno in cui diventa operativo (gg/mm/aaaa):", 
 if st.button("Template per Posta Elettronica"):
     sAM = genera_samaccountname(nome, cognome, secondo_nome, secondo_cognome, False)
     cn  = build_full_name(cognome, secondo_cognome, nome, secondo_nome, False)
+    # Costruzione elenco gruppi da config
+    groups_md = "\n".join([f"- {g}" for g in o365_groups])
+
     table_md = f"""
 | Campo             | Valore                                     |
 |-------------------|--------------------------------------------|
@@ -151,8 +160,7 @@ if st.button("Template per Posta Elettronica"):
 """
     st.markdown("Ciao.  \nRichiedo cortesemente la definizione di una casella di posta come sottoindicato.")
     st.markdown(table_md)
-    st.markdown("Inviare batch di notifica migrazione mail a: imac@consip.it  ")
-    st.markdown("Aggiungere utenza di dominio ai gruppi:\n- O365 Utenti Standard  \n- O365 Teams Premium  \n- O365 Copilot Plus")
+    st.markdown(f"Inviare batch di notifica migrazione mail a: imac@consip.it  \n" + f"Aggiungere utenza di dominio ai gruppi:\n{groups_md}")
     if dl_lines:
         st.markdown(f"Il giorno **{data_operativa}** occorre inserire la casella nelle DL:")
         for dl in dl_lines:
