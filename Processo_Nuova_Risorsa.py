@@ -259,7 +259,7 @@ if st.button("Genera CSV Interna"):
     st.success(f"✅ File CSV generato per '{sAM}'")
 
 # ------------------------------------------------------------
-# Generazione CSV Computer
+# Generazione CSV Computer (versione corretta)
 # ------------------------------------------------------------
 if st.button("Genera CSV Computer"):
     # Generazione valori
@@ -267,33 +267,44 @@ if st.button("Genera CSV Computer"):
     cn = build_full_name(cognome, secondo_cognome, nome, secondo_nome, False)
     mobile = f"+39 {numero_telefono}" if numero_telefono else ""
     comp = description or ""
-    # Definisci header e riga con doppio apice solo su mobile e cn, e sAM@consip.it
+
+    # Definisci header
     comp_header = [
         "Computer", "OU", "add_mail", "remove_mail",
         "add_mobile", "remove_mobile",
         "add_userprincipalname", "remove_userprincipalname",
         "disable", "moveToOU"
     ]
+
+    # Costruisci la riga: avvolgi manualmente in " " solo mobile e add_userprincipalname
     comp_row = [
-        comp, "",
-        f"{sAM}@consip.it", "",
-        f"\"{mobile}\"", "",
-        f"\"{cn}\"", "",
-        "", ""
+        comp,
+        "",  # OU
+        f"{sAM}@consip.it",
+        "",  # remove_mail
+        f"\"{mobile}\"",  # add_mobile con doppio apice
+        "",  # remove_mobile
+        f"\"{cn}\"",  # add_userprincipalname con doppio apice
+        "",  # remove_userprincipalname
+        "",  # disable
+        ""   # moveToOU
     ]
+
     # Anteprima
     df_comp = pd.DataFrame([comp_row], columns=comp_header)
     st.dataframe(df_comp)
-    # Generazione CSV
+
+    # Generazione CSV con QUOTE_NONE
     buf2 = io.StringIO()
-    writer2 = csv.writer(buf2, quoting=csv.QUOTE_MINIMAL)
+    writer2 = csv.writer(buf2, quoting=csv.QUOTE_NONE, escapechar="\\")
     writer2.writerow(comp_header)
     writer2.writerow(comp_row)
     buf2.seek(0)
+
     st.download_button(
         label="📥 Scarica CSV Computer",
         data=buf2.getvalue(),
         file_name=f"{cognome}_{nome[:1]}_computer.csv",
         mime="text/csv"
     )
-    st.success("✅ File CSV Computer generato")
+    st.success("✅ File CSV Computer generato correttamente")
