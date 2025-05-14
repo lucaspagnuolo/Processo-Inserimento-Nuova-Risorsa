@@ -262,10 +262,12 @@ if st.button("Genera CSV Interna"):
 # Generazione CSV Computer
 # ------------------------------------------------------------
 if st.button("Genera CSV Computer"):
+    # Generazione valori
     sAM = genera_samaccountname(nome, cognome, secondo_nome, secondo_cognome, False)
     cn = build_full_name(cognome, secondo_cognome, nome, secondo_nome, False)
     mobile = f"+39 {numero_telefono}" if numero_telefono else ""
     comp = description or ""
+    # Definisci header e riga con doppio apice solo su mobile e cn, e sAM@consip.it
     comp_header = [
         "Computer", "OU", "add_mail", "remove_mail",
         "add_mobile", "remove_mobile",
@@ -273,14 +275,16 @@ if st.button("Genera CSV Computer"):
         "disable", "moveToOU"
     ]
     comp_row = [
-        f"\"{comp}\"", "",
-        f"\"{sAM}\"", "",
+        comp, "",
+        f"{sAM}@consip.it", "",
         f"\"{mobile}\"", "",
         f"\"{cn}\"", "",
         "", ""
     ]
+    # Anteprima
     df_comp = pd.DataFrame([comp_row], columns=comp_header)
     st.dataframe(df_comp)
+    # Generazione CSV
     buf2 = io.StringIO()
     writer2 = csv.writer(buf2, quoting=csv.QUOTE_MINIMAL)
     writer2.writerow(comp_header)
