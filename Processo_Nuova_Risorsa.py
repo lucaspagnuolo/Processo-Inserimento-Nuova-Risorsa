@@ -192,4 +192,104 @@ if profilazione_flag:
     ).splitlines()
 
 # Scegli DL
-...
+dl_list = dl_standard if selected_key == "utenti_standard" else dl_vip if selected_key == "utenti_vip" else []
+
+# ------------------------------------------------------------
+# Preview Messaggio
+# ------------------------------------------------------------
+if st.button("Template per Posta Elettronica"):
+    sAM = genera_samaccountname(nome, cognome, secondo_nome, secondo_cognome, False)
+    cn = build_full_name(cognome, secondo_cognome, nome, secondo_nome, False)
+    groups_md = "\n".join(f"- {g}" for g in o365_groups)
+    table_md = f"""
+| Campo             | Valore                                     |
+|-------------------|--------------------------------------------|
+| Tipo Utenza       | Remota                                     |
+| Utenza            | {sAM}                                      |
+| Alias             | {sAM}                                      |
+| Display name      | {cn}                                       |
+| Common name       | {cn}                                       |
+| e-mail            | {sAM}@consip.it                            |
+| e-mail secondaria | {sAM}@consipspa.mail.onmicrosoft.com       |
+| cell              | +39 {numero_telefono}                      |
+"""
+    st.markdown("Ciao.  \nRichiedo cortesemente la definizione di una casella di posta come sottoindicato.")
+    st.markdown(table_md)
+    st.markdown(f"Inviare batch di notifica migrazione mail a: imac@consip.it  \nAggiungere utenza di dominio ai gruppi:\n{groups_md}")
+    if dl_list:
+        st.markdown(f"Il giorno **{data_operativa}** occorre inserire la casella nelle DL:")
+        for dl in dl_list:
+            st.markdown(f"- {dl}")
+    if profilazione_flag:
+        st.markdown("Profilare su SM:")
+        for sm in sm_lines:
+            st.markdown(f"- {sm}")
+    st.markdown(f"Aggiungere utenza al:\n- gruppo Azure: {grp_foorban}\n- canale {pillole}")
+    st.markdown("Grazie  \nSaluti")
+
+# ------------------------------------------------------------
+# Generazione CSV Interna
+# ------------------------------------------------------------
+if st.button("Genera CSV Interna"):
+    sAM = genera_samaccountname(nome, cognome, secondo_nome, secondo_cognome, False)
+    cn = build_full_name(cognome, secondo_cognome, nome, secondo_nome, False)
+    given = f"{nome} {secondo_nome}".strip()
+    surn = f"{cognome} {secondo_cognome}".strip()
+    mobile = f"+39 {numero_telefono}" if numero_telefono else ""
+    row = [sAM, "SI", ou_value, cn.replace(" (esterno)", ""), cn, cn, given, surn,
+           codice_fiscale, employee_id, department, description or "<PC>", "No", "",
+           f"{sAM}@consip.it", f"{sAM}@consip.it", mobile, "", inserimento_gruppo, "", "",
+           telephone_number, company]
+    for i in (2, 3, 4, 5): row[i] = f"\"{row[i]}\""
+    if secondo_nome: row[6] = f"\"{row[6]}\""
+    if secondo_cognome: row[7] = f"\"{row[7]}\""
+    for i in (16, 21): row[i] = f"\"{row[i]}\""
+    buf = io.StringIO()
+    writer = csv.writer(buf, quoting=csv.QUOTE_NONE, escapechar="\\")
+    writer.writerow(HEADER)
+    writer.writerow(row)
+    buf.seek(0)
+    st.dataframe(pd.DataFrame([row], columns=HEADER))
+    st.download_button(
+        label="📥 Scarica CSV",
+        data=buf.getvalue(),
+        file_name=f"{cognome}_{nome[:1]}_interno.csv",
+        mime="text/csv"
+    )
+    st.success(f"✅ File CSV generato per '{sAM}'")
+
+# ------------------------------------------------------------
+# Generazione CSV Computer
+# ------------------------------------------------------------
+if st.button("Genera CSV Computer"):
+    sAM = genera_samaccountname(nome, cognome, secondo_nome, secondo_cognome, False)
+    cn = build_full_name(cognome, secondo_cognome, nome, secondo_nome, False)
+    mobile = f"+39 {numero_telefono}" if numero_telefono else ""
+    comp = description or ""
+    comp_header = [
+        "Computer", "OU", "add_mail", "remove_mail",
+        "add_mobile", "remove_mobile",
+        "add_userprincipalname", "remove_userprincipalname",
+        "disable", "moveToOU"
+    ]
+    comp_row = [
+        f"\"{comp}\"", "",
+        f"\"{sAM}\"", "",
+        f"\"{mobile}\"", "",
+        f"\"{cn}\"", "",
+        "", ""
+    ]
+    df_comp = pd.DataFrame([comp_row], columns=comp_header)
+    st.dataframe(df_comp)
+    buf2 = io.StringIO()
+    writer2 = csv.writer(buf2, quoting=csv.QUOTE_MINIMAL)
+    writer2.writerow(comp_header)
+    writer2.writerow(comp_row)
+    buf2.seek(0)
+    st.download_button(
+        label="📥 Scarica CSV Computer",
+        data=buf2.getvalue(),
+        file_name=f"{cognome}_{nome[:1]}_computer.csv",
+        mime="text/csv"
+    )
+    st.success("✅ File CSV Computer generato")
