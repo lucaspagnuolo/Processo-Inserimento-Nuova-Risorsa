@@ -41,19 +41,28 @@ if not config_file:
 ou_options, gruppi, defaults = load_config_from_bytes(config_file.read())
 
 # ------------------------------------------------------------
-# Lettura Defaults
+# Lettura Defaults (VERSIONE DINAMICA)
 # ------------------------------------------------------------
-dl_standard = defaults.get("dl_standard", "").split(";")
-dl_vip = defaults.get("dl_vip", "").split(";")
+
+# 1. DL standard e VIP
+dl_standard = defaults.get("dl_standard", "")
+dl_standard = dl_standard.split(";") if dl_standard else []
+
+dl_vip = defaults.get("dl_vip", "")
+dl_vip = dl_vip.split(";") if dl_vip else []
+
+# 2. Tutti i gruppi O365 (prefisso grp_o365_)
 o365_groups = [
-    defaults.get("grp_o365_standard", "O365 Utenti Standard"),
-    defaults.get("grp_o365_teams", "O365 Teams Premium"),
-    defaults.get("grp_o365_copilot", "O365 Copilot Plus"),
-    defaults.get("grp_o365_viva", "O365 VivaEngage"),
-    defaults.get("grp_o365_forms", "O365 Forms")
+    value for key, value in defaults.items()
+    if key.startswith("grp_o365_")
 ]
-grp_foorban = defaults.get("grp_foorban", "Foorban_Users")
-pillole = defaults.get("pillole", "Pillole formative Teams Premium")
+# (se ti serve un ordine custom, puoi ad es. ordinarli così:)
+# master_o365_order = ["grp_o365_standard", "grp_o365_teams", ...]
+# o365_groups = [defaults[k] for k in master_o365_order if k in defaults]
+
+# 3. Gli altri gruppi “puntuali”
+grp_foorban = defaults.get("grp_foorban", "")
+pillole    = defaults.get("pillole", "")
 
 # ------------------------------------------------------------
 # Utility
