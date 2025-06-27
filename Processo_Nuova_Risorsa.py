@@ -49,7 +49,7 @@ o365_groups = [
     defaults.get("grp_o365_standard", "O365 Utenti Standard"),
     defaults.get("grp_o365_teams", "O365 Teams Premium"),
     defaults.get("grp_o365_copilot", "O365 Copilot Plus"),
-    defaults.get("grp_o365_viva", "O365 VivaEngage")
+    defaults.get("grp_o365_viva", "O365 VivaEngage"),
     defaults.get("grp_o365_forms", "O365 Forms")
 ]
 grp_foorban = defaults.get("grp_foorban", "Foorban_Users")
