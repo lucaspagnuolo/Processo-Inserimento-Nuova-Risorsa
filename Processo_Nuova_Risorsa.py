@@ -202,39 +202,26 @@ Grazie
     st.subheader("Anteprima CSV Computer")
     st.dataframe(pd.DataFrame([row_cp], columns=HEADER_COMPUTER))
 
-                # Download: header senza virgolette, righe con virgolette solo su campi con spazio
-    buf_ut = io.StringIO()
-    w_ut = csv.writer(buf_ut, quotechar='"', quoting=csv.QUOTE_NONE, escapechar='\')
-    # Scrivi header (no virgolette)
-    w_ut.writerow(HEADER_UTENTE)
-    # Prepara riga utente: aggiunge "" solo ai campi con spazio
-    def quote_if_space(val):
-        s = str(val)
-        if ' ' in s:
-            # Escape eventuali quote interne
-            s = s.replace('"','\"')
-            return f'"{s}"'
-        return s
-    row_ut_quoted = [quote_if_space(v) for v in row_ut]
-    w_ut.writerow(row_ut_quoted)
-    buf_ut.seek(0)
+    # Download
+    buf_user = io.StringIO()
+    w1 = csv.writer(buf_user, quoting=csv.QUOTE_NONE, escapechar="\\")
+    w1.writerow(HEADER_USER); w1.writerow(row_user)
+    buf_user.seek(0)
 
-    buf_cp = io.StringIO()
-    w_cp = csv.writer(buf_cp, quotechar='"', quoting=csv.QUOTE_NONE, escapechar='\')
-    w_cp.writerow(HEADER_COMPUTER)
-    row_cp_quoted = [quote_if_space(v) for v in row_cp]
-    w_cp.writerow(row_cp_quoted)
-    buf_cp.seek(0)
+    buf_comp = io.StringIO()
+    w2 = csv.writer(buf_comp, quoting=csv.QUOTE_NONE, escapechar="\\")
+    w2.writerow(HEADER_COMP); w2.writerow(row_comp)
+    buf_comp.seek(0)
 
     st.download_button(
         "📥 Scarica CSV Utente",
-        data=buf_ut.getvalue(),
+        data=buf_user.getvalue(),
         file_name=f"{basename}_utente.csv",
         mime="text/csv"
     )
     st.download_button(
         "📥 Scarica CSV Computer",
-        data=buf_cp.getvalue(),
+        data=buf_comp.getvalue(),
         file_name=f"{basename}_computer.csv",
         mime="text/csv"
     )
