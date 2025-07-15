@@ -196,7 +196,7 @@ Si richiede modifiche come da file:
 - `{basename}_computer.csv`  (oggetti di tipo computer)  
 - `{basename}_utente.csv`  (oggetti di tipo utenze)  
 Archiviati al percorso:  
-`\\srv_dati.consip.tesoro.it\AreaCondivisa\DEPSI\IC\AD_Modifiche`  
+`\\\\\srv_dati.consip.tesoro.it\AreaCondivisa\DEPSI\IC\AD_Modifiche`  
 Grazie
 """
     )
