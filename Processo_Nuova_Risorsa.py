@@ -3,24 +3,40 @@ import csv
 import pandas as pd
 from datetime import datetime, timedelta
 import io
+import unicodedata
 
 # ------------------------------------------------------------
 # Caricamento configurazione da Excel caricato dall'utente
 # ------------------------------------------------------------
 def load_config_from_bytes(data: bytes):
-    cfg = pd.read_excel(io.BytesIO(data), sheet_name="Risorsa Interna")
-    ou_df = cfg[cfg["Section"] == "OU"][["Key/App","Label/Gruppi/Value"]].rename(
+    cfg = pd.read_excel(io.BytesIO(data), sheet_name=None, engine="openpyxl")
+
+    # Estrai configurazione Risorsa Interna se presente
+    if "Risorsa Interna" in cfg:
+        ris = cfg["Risorsa Interna"]
+    else:
+        ris = pd.DataFrame()
+
+    ou_df = ris[ris["Section"] == "OU"][["Key/App","Label/Gruppi/Value"]].rename(
         columns={"Key/App": "key", "Label/Gruppi/Value": "label"})
     ou_options = dict(zip(ou_df["key"], ou_df["label"]))
 
-    grp_df = cfg[cfg["Section"] == "InserimentoGruppi"][["Key/App","Label/Gruppi/Value"]].rename(
+    grp_df = ris[ris["Section"] == "InserimentoGruppi"][["Key/App","Label/Gruppi/Value"]].rename(
         columns={"Key/App": "app", "Label/Gruppi/Value": "gruppi"})
     gruppi = dict(zip(grp_df["app"], grp_df["gruppi"]))
 
-    def_df = cfg[cfg["Section"] == "Defaults"][["Key/App","Label/Gruppi/Value"]].rename(
+    def_df = ris[ris["Section"] == "Defaults"][["Key/App","Label/Gruppi/Value"]].rename(
         columns={"Key/App": "key", "Label/Gruppi/Value": "value"})
     defaults = dict(zip(def_df["key"], def_df["value"]))
-    return ou_options, gruppi, defaults
+
+    # Estrai organigramma se presente
+    organigramma = {}
+    if "organigramma" in cfg:
+        org = cfg["organigramma"].iloc[:, :2].dropna(how="all")
+        org.columns = ["label", "value"]
+        organigramma = dict(zip(org["label"], org["value"]))
+
+    return ou_options, gruppi, defaults, organigramma
 
 # ------------------------------------------------------------
 # App 1.1: Nuova Risorsa Interna
@@ -36,7 +52,7 @@ if not config_file:
     st.warning("Per favore carica il file di configurazione per continuare.")
     st.stop()
 
-ou_options, gruppi, defaults = load_config_from_bytes(config_file.read())
+ou_options, gruppi, defaults, organigramma = load_config_from_bytes(config_file.read())
 
 dl_standard = defaults.get("dl_standard", "").split(";") if defaults.get("dl_standard") else []
 dl_vip = defaults.get("dl_vip", "").split(";") if defaults.get("dl_vip") else []
@@ -45,38 +61,27 @@ grp_foorban = defaults.get("grp_foorban", "")
 pillole = defaults.get("pillole", "")
 
 # Utility functions
-import unicodedata
-
 def normalize_name(s: str) -> str:
     """Rimuove spazi, apostrofi e accenti, restituisce in minuscolo."""
-    # Normalize unicode to decompose accents
     nfkd = unicodedata.normalize('NFKD', s)
-    # Keep ASCII characters only
     ascii_str = nfkd.encode('ASCII', 'ignore').decode()
-    # Remove spaces and apostrophes, lowercase
     return ascii_str.replace(' ', '').replace("'", '').lower()
 
 def genera_samaccountname(nome, cognome, secondo_nome="", secondo_cognome="", esterno=False):
-    """Genera samaccountname normalizzando cognome e nome (rimuove spazi, apostrofi, accenti)."""
-    # Normalize parts
     n = normalize_name(nome)
     sn = normalize_name(secondo_nome)
     c = normalize_name(cognome)
     sc = normalize_name(secondo_cognome)
     suffix = ".ext" if esterno else ""
     limit = 16 if esterno else 20
-    # Candidate 1
     cand1 = f"{n}{sn}.{c}{sc}"
     if len(cand1) <= limit:
         return cand1 + suffix
-    # Candidate 2
     cand2 = f"{n[:1]}{sn[:1]}.{c}{sc}"
     if len(cand2) <= limit:
         return cand2 + suffix
-    # Base fallback
     base = f"{n[:1]}{sn[:1]}.{c}"
     return base[:limit] + suffix
-
 
 def build_full_name(cognome, secondo_cognome, nome, secondo_nome, esterno=False):
     parts = [p for p in [cognome, secondo_cognome, nome, secondo_nome] if p]
@@ -101,7 +106,14 @@ secondo_cognome  = st.text_input("Secondo Cognome").strip().capitalize()
 nome             = st.text_input("Nome").strip().capitalize()
 secondo_nome     = st.text_input("Secondo Nome").strip().capitalize()
 codice_fiscale   = st.text_input("Codice Fiscale", "").strip()
-department       = st.text_input("Sigla Divisione-Area", defaults.get("department_default", "")).strip()
+
+# Dropdown per Sigla Divisione-Area da organigramma
+if organigramma:
+    dept_label = st.selectbox("Sigla Divisione-Area", ["-- Seleziona --"] + list(organigramma.keys()))
+    department = organigramma.get(dept_label, "") if dept_label != "-- Seleziona --" else defaults.get("department_default", "")
+else:
+    department = st.text_input("Sigla Divisione-Area", defaults.get("department_default", "")).strip()
+
 numero_telefono  = st.text_input("Mobile (+39 già inserito)", "").replace(" ", "")
 description      = st.text_input("PC (lascia vuoto per <PC>)", "<PC>").strip()
 resident_flag    = st.checkbox("È Resident?")
@@ -122,9 +134,7 @@ sm_lines        = st.text_area("SM (una per riga)", "").splitlines() if profilaz
 
 dl_list = dl_standard if selected_key == "utenti_standard" else dl_vip if selected_key == "utenti_vip" else []
 
-# ------------------------------------------------------------
 # Preview Messaggio (Lasciata invariata)
-# ------------------------------------------------------------
 if st.button("Template per Posta Elettronica"):
     sAM = genera_samaccountname(nome, cognome, secondo_nome, secondo_cognome, False)
     cn = build_full_name(cognome, secondo_cognome, nome, secondo_nome, False)
@@ -154,13 +164,10 @@ if st.button("Template per Posta Elettronica"):
     st.markdown(f"Aggiungere utenza al:\n- gruppo Azure: {grp_foorban}\n- canale {pillole}")
     st.markdown("Grazie  \nSaluti")
 
-# ------------------------------------------------------------
 # Unica Generazione CSV Utente + Computer
-# ------------------------------------------------------------
 if st.button("Genera CSV"):    
     sAM = genera_samaccountname(nome, cognome, secondo_nome, secondo_cognome, False)
     cn = build_full_name(cognome, secondo_cognome, nome, secondo_nome, False)
-            # Build basename including optional secondo cognome
     norm_cognome = normalize_name(cognome)
     norm_secondo = normalize_name(secondo_cognome) if secondo_cognome else ''
     name_parts = [norm_cognome] + ([norm_secondo] if norm_secondo else []) + [nome[:1].lower()]
@@ -180,12 +187,9 @@ if st.button("Genera CSV"):
     ]
     # Riga computer
     row_cp = [
-        description or "", "", f"{sAM}@consip.it", "",
-        f"\"{mobile}\"", "",
-        f"\"{cn}\"", "", "", ""
+        description or "", "", f"{sAM}@consip.it", "", f"\"{mobile}\"", "", f"\"{cn}\"", "", "", ""
     ]
 
-    # Messaggio anteprima
     st.markdown(f"""
 Ciao.  
 Si richiede modifiche come da file:  
@@ -196,13 +200,12 @@ Archiviati al percorso:
 Grazie
 """
     )
-    # Anteprima tabelle
     st.subheader("Anteprima CSV Utente")
     st.dataframe(pd.DataFrame([row_ut], columns=HEADER_UTENTE))
     st.subheader("Anteprima CSV Computer")
     st.dataframe(pd.DataFrame([row_cp], columns=HEADER_COMPUTER))
 
-    # Generazione buffer e download
+    # Download
     buf_ut = io.StringIO()
     w_ut = csv.writer(buf_ut, quoting=csv.QUOTE_NONE, escapechar="\\")
     w_ut.writerow(HEADER_UTENTE)
