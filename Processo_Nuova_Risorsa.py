@@ -202,7 +202,7 @@ Grazie
     st.subheader("Anteprima CSV Computer")
     st.dataframe(pd.DataFrame([row_cp], columns=HEADER_COMPUTER))
 
-            # Download: header senza virgolette, righe con virgolette solo su campi con spazio
+                # Download: header senza virgolette, righe con virgolette solo su campi con spazio
     buf_ut = io.StringIO()
     w_ut = csv.writer(buf_ut, quotechar='"', quoting=csv.QUOTE_NONE, escapechar='\')
     # Scrivi header (no virgolette)
