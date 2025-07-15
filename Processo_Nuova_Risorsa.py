@@ -45,6 +45,16 @@ grp_foorban = defaults.get("grp_foorban", "")
 pillole = defaults.get("pillole", "")
 
 # Utility functions
+import unicodedata
+
+def normalize_name(s: str) -> str:
+    """Rimuove spazi, apostrofi e accenti, restituisce in minuscolo."""
+    # Normalize unicode to decompose accents
+    nfkd = unicodedata.normalize('NFKD', s)
+    # Keep ASCII characters only
+    ascii_str = nfkd.encode('ASCII', 'ignore').decode()
+    # Remove spaces and apostrophes, lowercase
+    return ascii_str.replace(' ', '').replace("'", '').lower()
 
 def genera_samaccountname(nome, cognome, secondo_nome="", secondo_cognome="", esterno=False):
     n, sn = nome.strip().lower(), secondo_nome.strip().lower()
@@ -143,7 +153,11 @@ if st.button("Template per Posta Elettronica"):
 if st.button("Genera CSV"):    
     sAM = genera_samaccountname(nome, cognome, secondo_nome, secondo_cognome, False)
     cn = build_full_name(cognome, secondo_cognome, nome, secondo_nome, False)
-    # Build basename including optional secondo cognome
+            # Build basename including optional secondo cognome
+    norm_cognome = normalize_name(cognome)
+    norm_secondo = normalize_name(secondo_cognome) if secondo_cognome else ''
+    name_parts = [norm_cognome] + ([norm_secondo] if norm_secondo else []) + [nome[:1].lower()]
+    basename = "_".join(name_parts)
     name_parts = [cognome] + ([secondo_cognome] if secondo_cognome else []) + [nome[:1]]
     basename = "_".join(name_parts)
     given = f"{nome} {secondo_nome}".strip()
