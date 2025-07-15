@@ -40,11 +40,11 @@ ou_options, gruppi, defaults = load_config_from_bytes(config_file.read())
 
 dl_standard = defaults.get("dl_standard", "").split(";") if defaults.get("dl_standard") else []
 dl_vip = defaults.get("dl_vip", "").split(";") if defaults.get("dl_vip") else []
-o365_groups = [v for k,v in defaults.items() if k.startswith("grp_o365_")]
+o365_groups = [v for k, v in defaults.items() if k.startswith("grp_o365_")]
 grp_foorban = defaults.get("grp_foorban", "")
 pillole = defaults.get("pillole", "")
 
-# Utility
+# Utility functions
 
 def genera_samaccountname(nome, cognome, secondo_nome="", secondo_cognome="", esterno=False):
     n, sn = nome.strip().lower(), secondo_nome.strip().lower()
@@ -52,9 +52,11 @@ def genera_samaccountname(nome, cognome, secondo_nome="", secondo_cognome="", es
     suffix = ".ext" if esterno else ""
     limit = 16 if esterno else 20
     cand1 = f"{n}{sn}.{c}{sc}"
-    if len(cand1) <= limit: return cand1 + suffix
+    if len(cand1) <= limit:
+        return cand1 + suffix
     cand2 = f"{n[:1]}{sn[:1]}.{c}{sc}"
-    if len(cand2) <= limit: return cand2 + suffix
+    if len(cand2) <= limit:
+        return cand2 + suffix
     base = f"{n[:1]}{sn[:1]}.{c}"
     return base[:limit] + suffix
 
@@ -76,39 +78,39 @@ HEADER_COMPUTER = [
 
 # Input Module
 st.subheader("Modulo Inserimento Nuova Risorsa Interna")
-employee_id     = st.text_input("Matricola", defaults.get("employee_id_default", "")).strip()
-cognome         = st.text_input("Cognome").strip().capitalize()
-secondo_cognome = st.text_input("Secondo Cognome").strip().capitalize()
-nome            = st.text_input("Nome").strip().capitalize()
-secondo_nome    = st.text_input("Secondo Nome").strip().capitalize()
-codice_fiscale  = st.text_input("Codice Fiscale", "").strip()
-department      = st.text_input("Sigla Divisione-Area", defaults.get("department_default","")).strip()
-numero_telefono = st.text_input("Mobile (+39 già inserito)", "").replace(" ", "")
-description     = st.text_input("PC (lascia vuoto per <PC>)", "<PC>").strip()
-resident_flag   = st.checkbox("È Resident?")
-numero_fisso    = st.text_input("Numero fisso Resident (+39 già inserito)", "").strip() if resident_flag else ""
-telephone_number= f"+39 {numero_fisso}" if resident_flag and numero_fisso else defaults.get("telephone_interna","")
+employee_id      = st.text_input("Matricola", defaults.get("employee_id_default", "")).strip()
+cognome          = st.text_input("Cognome").strip().capitalize()
+secondo_cognome  = st.text_input("Secondo Cognome").strip().capitalize()
+nome             = st.text_input("Nome").strip().capitalize()
+secondo_nome     = st.text_input("Secondo Nome").strip().capitalize()
+codice_fiscale   = st.text_input("Codice Fiscale", "").strip()
+department       = st.text_input("Sigla Divisione-Area", defaults.get("department_default", "")).strip()
+numero_telefono  = st.text_input("Mobile (+39 già inserito)", "").replace(" ", "")
+description      = st.text_input("PC (lascia vuoto per <PC>)", "<PC>").strip()
+resident_flag    = st.checkbox("È Resident?")
+numero_fisso     = st.text_input("Numero fisso Resident (+39 già inserito)", "").strip() if resident_flag else ""
+telephone_number = f"+39 {numero_fisso}" if resident_flag and numero_fisso else defaults.get("telephone_interna", "")
 
-ou_vals     = list(ou_options.values())
-def_o       = defaults.get("ou_default", ou_vals[0] if ou_vals else "")
-label_ou    = st.selectbox("Tipologia Utente", ou_vals, index=ou_vals.index(def_o))
-selected_key= list(ou_options.keys())[ou_vals.index(label_ou)]
-ou_value    = ou_options[selected_key]
-inserimento_gruppo = gruppi.get("interna","")
-company           = defaults.get("company_interna","")
+ou_vals           = list(ou_options.values())
+def_o             = defaults.get("ou_default", ou_vals[0] if ou_vals else "")
+label_ou          = st.selectbox("Tipologia Utente", ou_vals, index=ou_vals.index(def_o))
+selected_key      = list(ou_options.keys())[ou_vals.index(label_ou)]
+ou_value          = ou_options[selected_key]
+inserimento_gruppo = gruppi.get("interna", "")
+company           = defaults.get("company_interna", "")
 
 data_operativa = st.text_input("Data operatività (gg/mm/aaaa)", "").strip()
 profilazione    = st.checkbox("Profilazione SM?")
-sm_lines        = st.text_area("SM (una per riga)","").splitlines() if profilazione else []
+sm_lines        = st.text_area("SM (una per riga)", "").splitlines() if profilazione else []
 
-dl_list = dl_standard if selected_key=="utenti_standard" else dl_vip if selected_key=="utenti_vip" else []
+dl_list = dl_standard if selected_key == "utenti_standard" else dl_vip if selected_key == "utenti_vip" else []
 
 # ------------------------------------------------------------
 # Preview Messaggio (Lasciata invariata)
 # ------------------------------------------------------------
 if st.button("Template per Posta Elettronica"):
-    sAM = genera_samaccountname(nome,cognome,secondo_nome,secondo_cognome,False)
-    cn = build_full_name(cognome,secondo_cognome,nome,secondo_nome,False)
+    sAM = genera_samaccountname(nome, cognome, secondo_nome, secondo_cognome, False)
+    cn = build_full_name(cognome, secondo_cognome, nome, secondo_nome, False)
     groups_md = "\n".join(f"- {g}" for g in o365_groups)
     table_md = f"""
 | Campo             | Valore                                     |
@@ -126,10 +128,12 @@ if st.button("Template per Posta Elettronica"):
     st.markdown(f"Inviare batch di notifica migrazione mail a: imac@consip.it  \nAggiungere utenza di dominio ai gruppi:\n{groups_md}")
     if dl_list:
         st.markdown(f"Il giorno **{data_operativa}** occorre inserire la casella nelle DL:")
-        for dl in dl_list: st.markdown(f"- {dl}")
+        for dl in dl_list:
+            st.markdown(f"- {dl}")
     if profilazione:
         st.markdown("Profilare su SM:")
-        for sm in sm_lines: st.markdown(f"- {sm}")
+        for sm in sm_lines:
+            st.markdown(f"- {sm}")
     st.markdown(f"Aggiungere utenza al:\n- gruppo Azure: {grp_foorban}\n- canale {pillole}")
     st.markdown("Grazie  \nSaluti")
 
@@ -137,32 +141,35 @@ if st.button("Template per Posta Elettronica"):
 # Unica Generazione CSV Utente + Computer
 # ------------------------------------------------------------
 if st.button("Genera CSV"):    
-    sAM = genera_samaccountname(nome,cognome,secondo_nome,secondo_cognome,False)
-    cn = build_full_name(cognome,secondo_cognome,nome,secondo_nome,False)
+    sAM = genera_samaccountname(nome, cognome, secondo_nome, secondo_cognome, False)
+    cn = build_full_name(cognome, secondo_cognome, nome, secondo_nome, False)
+    # Build basename including optional secondo cognome
+    name_parts = [cognome] + ([secondo_cognome] if secondo_cognome else []) + [nome[:1]]
+    basename = "_".join(name_parts)
     given = f"{nome} {secondo_nome}".strip()
-    surn  = f"{cognome} {secondo_cognome}".strip()
+    surn = f"{cognome} {secondo_cognome}".strip()
     mobile = f"+39 {numero_telefono}" if numero_telefono else ""
 
     # Riga utente
     row_ut = [
         sAM, "SI", ou_value, cn, cn, cn, given, surn,
         codice_fiscale, employee_id, department, description or "<PC>",
-        "No","",f"{sAM}@consip.it",f"{sAM}@consip.it",mobile,
-        "",inserimento_gruppo,"","",telephone_number,company
+        "No", "", f"{sAM}@consip.it", f"{sAM}@consip.it", mobile,
+        "", inserimento_gruppo, "", "", telephone_number, company
     ]
     # Riga computer
     row_cp = [
-        description or "", "", f"{sAM}@consip.it","",
-        f"\"{mobile}\"","",
-        f"\"{cn}\"","", "",""
+        description or "", "", f"{sAM}@consip.it", "",
+        f"\"{mobile}\"", "",
+        f"\"{cn}\"", "", "", ""
     ]
 
     # Messaggio anteprima
     st.markdown(f"""
 Ciao.  
 Si richiede modifiche come da file:  
-- `{cognome}_{nome[:1]}_computer.csv`  (oggetti di tipo computer)  
-- `{cognome}_{nome[:1]}_utente.csv`  (oggetti di tipo utenze)  
+- `{basename}_computer.csv`  (oggetti di tipo computer)  
+- `{basename}_utente.csv`  (oggetti di tipo utenze)  
 Archiviati al percorso:  
 `\\srv_dati.consip.tesoro.it\AreaCondivisa\DEPSI\IC\AD_Modifiche`  
 Grazie
@@ -175,8 +182,27 @@ Grazie
     st.dataframe(pd.DataFrame([row_cp], columns=HEADER_COMPUTER))
 
     # Generazione buffer e download
-    buf_ut=io.StringIO(); w=csv.writer(buf_ut,quoting=csv.QUOTE_NONE,escapechar="\\"); w.writerow(HEADER_UTENTE); w.writerow(row_ut); buf_ut.seek(0)
-    buf_cp=io.StringIO(); w2=csv.writer(buf_cp,quoting=csv.QUOTE_NONE,escapechar="\\"); w2.writerow(HEADER_COMPUTER); w2.writerow(row_cp); buf_cp.seek(0)
-    st.download_button("📥 Scarica CSV Utente", data=buf_ut.getvalue(), file_name=f"{cognome}_{nome[:1]}_utente.csv", mime="text/csv")
-    st.download_button("📥 Scarica CSV Computer", data=buf_cp.getvalue(), file_name=f"{cognome}_{nome[:1]}_computer.csv", mime="text/csv")
+    buf_ut = io.StringIO()
+    w_ut = csv.writer(buf_ut, quoting=csv.QUOTE_NONE, escapechar="\\")
+    w_ut.writerow(HEADER_UTENTE)
+    w_ut.writerow(row_ut)
+    buf_ut.seek(0)
+    buf_cp = io.StringIO()
+    w_cp = csv.writer(buf_cp, quoting=csv.QUOTE_NONE, escapechar="\\")
+    w_cp.writerow(HEADER_COMPUTER)
+    w_cp.writerow(row_cp)
+    buf_cp.seek(0)
+
+    st.download_button(
+        "📥 Scarica CSV Utente",
+        data=buf_ut.getvalue(),
+        file_name=f"{basename}_utente.csv",
+        mime="text/csv"
+    )
+    st.download_button(
+        "📥 Scarica CSV Computer",
+        data=buf_cp.getvalue(),
+        file_name=f"{basename}_computer.csv",
+        mime="text/csv"
+    )
     st.success(f"✅ CSV generati per '{sAM}'")
