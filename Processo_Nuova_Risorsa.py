@@ -193,7 +193,7 @@ Si richiede modifiche come da file:
 - `{basename}_computer.csv`  (oggetti di tipo computer)  
 - `{basename}_utente.csv`  (oggetti di tipo utenze)  
 Archiviati al percorso:  
-`\\srv_dati.consip.tesoro.it\AreaCondivisa\DEPSI\IC\AD_Modifiche`  
+`\\\\srv_dati.consip.tesoro.it\AreaCondivisa\DEPSI\IC\AD_Modifiche`  
 Grazie
 """
     )
@@ -202,17 +202,27 @@ Grazie
     st.subheader("Anteprima CSV Computer")
     st.dataframe(pd.DataFrame([row_cp], columns=HEADER_COMPUTER))
 
-    # Download con virgolette corrette
+        # Download: header senza virgolette, righe con virgolette solo su campi con spazio
     buf_ut = io.StringIO()
-    w_ut = csv.writer(buf_ut, quotechar='"', quoting=csv.QUOTE_ALL)
+    w_ut = csv.writer(buf_ut, quotechar='"', quoting=csv.QUOTE_NONE, escapechar='\')
+    # Scrivi header (no virgolette)
     w_ut.writerow(HEADER_UTENTE)
-    w_ut.writerow(row_ut)
+    # Prepara riga utente: aggiunge "" solo ai campi con spazio
+    def quote_if_space(val):
+        s = str(val)
+        if ' ' in s:
+            s = s.replace('"','\"')
+            return f'"{s}"'
+        return s
+    row_ut_quoted = [quote_if_space(v) for v in row_ut]
+    w_ut.writerow(row_ut_quoted)
     buf_ut.seek(0)
 
     buf_cp = io.StringIO()
-    w_cp = csv.writer(buf_cp, quotechar='"', quoting=csv.QUOTE_ALL)
+    w_cp = csv.writer(buf_cp, quotechar='"', quoting=csv.QUOTE_NONE, escapechar='\')
     w_cp.writerow(HEADER_COMPUTER)
-    w_cp.writerow(row_cp)
+    row_cp_quoted = [quote_if_space(v) for v in row_cp]
+    w_cp.writerow(row_cp_quoted)
     buf_cp.seek(0)
 
     st.download_button(
