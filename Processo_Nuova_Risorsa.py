@@ -205,12 +205,16 @@ Grazie
     # Download
     buf_user = io.StringIO()
     w1 = csv.writer(buf_user, quoting=csv.QUOTE_NONE, escapechar="\\")
-    w1.writerow(HEADER_USER); w1.writerow(row_user)
+    # usa l'header e la riga corretti per l'utente
+    w1.writerow(HEADER_UTENTE)
+    w1.writerow(row_ut)
     buf_user.seek(0)
 
     buf_comp = io.StringIO()
     w2 = csv.writer(buf_comp, quoting=csv.QUOTE_NONE, escapechar="\\")
-    w2.writerow(HEADER_COMP); w2.writerow(row_comp)
+    # usa l'header e la riga corretti per il computer
+    w2.writerow(HEADER_COMPUTER)
+    w2.writerow(row_cp)
     buf_comp.seek(0)
 
     st.download_button(
