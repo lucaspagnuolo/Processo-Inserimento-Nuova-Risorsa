@@ -62,7 +62,6 @@ pillole = defaults.get("pillole", "")
 
 # Utility functions
 def normalize_name(s: str) -> str:
-    """Rimuove spazi, apostrofi e accenti, restituisce in minuscolo."""
     nfkd = unicodedata.normalize('NFKD', s)
     ascii_str = nfkd.encode('ASCII', 'ignore').decode()
     return ascii_str.replace(' ', '').replace("'", '').lower()
@@ -134,7 +133,7 @@ sm_lines        = st.text_area("SM (una per riga)", "").splitlines() if profilaz
 
 dl_list = dl_standard if selected_key == "utenti_standard" else dl_vip if selected_key == "utenti_vip" else []
 
-# Preview Messaggio (Lasciata invariata)
+# Preview Messaggio
 if st.button("Template per Posta Elettronica"):
     sAM = genera_samaccountname(nome, cognome, secondo_nome, secondo_cognome, False)
     cn = build_full_name(cognome, secondo_cognome, nome, secondo_nome, False)
@@ -164,7 +163,7 @@ if st.button("Template per Posta Elettronica"):
     st.markdown(f"Aggiungere utenza al:\n- gruppo Azure: {grp_foorban}\n- canale {pillole}")
     st.markdown("Grazie  \nSaluti")
 
-# Unica Generazione CSV Utente + Computer
+# Generazione CSV Utente + Computer
 if st.button("Genera CSV"):    
     sAM = genera_samaccountname(nome, cognome, secondo_nome, secondo_cognome, False)
     cn = build_full_name(cognome, secondo_cognome, nome, secondo_nome, False)
@@ -178,16 +177,14 @@ if st.button("Genera CSV"):
     surn = f"{cognome} {secondo_cognome}".strip()
     mobile = f"+39 {numero_telefono}" if numero_telefono else ""
 
-    # Riga utente
     row_ut = [
         sAM, "SI", ou_value, cn, cn, cn, given, surn,
         codice_fiscale, employee_id, department, description or "<PC>",
         "No", "", f"{sAM}@consip.it", f"{sAM}@consip.it", mobile,
         "", inserimento_gruppo, "", "", telephone_number, company
     ]
-    # Riga computer
     row_cp = [
-        description or "", "", f"{sAM}@consip.it", "", f"\"{mobile}\"", "", f"\"{cn}\"", "", "", ""
+        description or "", "", f"{sAM}@consip.it", "", mobile, "", cn, "", "", ""
     ]
 
     st.markdown(f"""
@@ -196,7 +193,7 @@ Si richiede modifiche come da file:
 - `{basename}_computer.csv`  (oggetti di tipo computer)  
 - `{basename}_utente.csv`  (oggetti di tipo utenze)  
 Archiviati al percorso:  
-`\\\\srv_dati.consip.tesoro.it\AreaCondivisa\DEPSI\IC\AD_Modifiche`  
+`\\srv_dati.consip.tesoro.it\AreaCondivisa\DEPSI\IC\AD_Modifiche`  
 Grazie
 """
     )
@@ -205,14 +202,15 @@ Grazie
     st.subheader("Anteprima CSV Computer")
     st.dataframe(pd.DataFrame([row_cp], columns=HEADER_COMPUTER))
 
-    # Download
+    # Download con virgolette corrette
     buf_ut = io.StringIO()
-    w_ut = csv.writer(buf_ut, quoting=csv.QUOTE_NONE, escapechar="\\")
+    w_ut = csv.writer(buf_ut, quotechar='"', quoting=csv.QUOTE_ALL)
     w_ut.writerow(HEADER_UTENTE)
     w_ut.writerow(row_ut)
     buf_ut.seek(0)
+
     buf_cp = io.StringIO()
-    w_cp = csv.writer(buf_cp, quoting=csv.QUOTE_NONE, escapechar="\\")
+    w_cp = csv.writer(buf_cp, quotechar='"', quoting=csv.QUOTE_ALL)
     w_cp.writerow(HEADER_COMPUTER)
     w_cp.writerow(row_cp)
     buf_cp.seek(0)
