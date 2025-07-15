@@ -57,16 +57,23 @@ def normalize_name(s: str) -> str:
     return ascii_str.replace(' ', '').replace("'", '').lower()
 
 def genera_samaccountname(nome, cognome, secondo_nome="", secondo_cognome="", esterno=False):
-    n, sn = nome.strip().lower(), secondo_nome.strip().lower()
-    c, sc = cognome.strip().lower(), secondo_cognome.strip().lower()
+    """Genera samaccountname normalizzando cognome e nome (rimuove spazi, apostrofi, accenti)."""
+    # Normalize parts
+    n = normalize_name(nome)
+    sn = normalize_name(secondo_nome)
+    c = normalize_name(cognome)
+    sc = normalize_name(secondo_cognome)
     suffix = ".ext" if esterno else ""
     limit = 16 if esterno else 20
+    # Candidate 1
     cand1 = f"{n}{sn}.{c}{sc}"
     if len(cand1) <= limit:
         return cand1 + suffix
+    # Candidate 2
     cand2 = f"{n[:1]}{sn[:1]}.{c}{sc}"
     if len(cand2) <= limit:
         return cand2 + suffix
+    # Base fallback
     base = f"{n[:1]}{sn[:1]}.{c}"
     return base[:limit] + suffix
 
