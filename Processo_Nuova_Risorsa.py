@@ -60,6 +60,9 @@ o365_groups = [v for k, v in defaults.items() if k.startswith("grp_o365_")]
 grp_foorban = defaults.get("grp_foorban", "")
 pillole = defaults.get("pillole", "")
 
+# Percorso di archivio (raw string per evitare escape warnings)
+ARCHIVE_PATH = r"\\srv_dati.consip.tesoro.it\AreaCondivisa\DEPSI\IC\AD_Modifiche"
+
 # Utility functions
 def auto_quote(fields, quotechar='"', predicate=lambda s: ' ' in s):
     """
@@ -133,12 +136,13 @@ resident_flag    = st.checkbox("È Resident?")
 numero_fisso     = st.text_input("Numero fisso Resident (+39 già inserito)", "").strip() if resident_flag else ""
 telephone_number = f"+39 {numero_fisso}" if resident_flag and numero_fisso else defaults.get("telephone_interna", "")
 
-ou_vals = list(ou_options.values())
+ou_vals = list(ou_options.values()) if ou_options else []
 # gestione defensiva dell'index per il selectbox (evita errori se def_o non è nella lista)
 def_o = defaults.get("ou_default", ou_vals[0] if ou_vals else "")
 index_default = 0
 if def_o in ou_vals:
     index_default = ou_vals.index(def_o)
+
 label_ou = st.selectbox("Tipologia Utente", ou_vals, index=index_default) if ou_vals else st.text_input("Tipologia Utente", "")
 selected_key = list(ou_options.keys())[ou_vals.index(label_ou)] if ou_vals else ""
 ou_value = ou_options[selected_key] if ou_vals else ""
@@ -155,17 +159,17 @@ dl_list = dl_standard if selected_key == "utenti_standard" else dl_vip if select
 if st.button("Template per Posta Elettronica"):
     sAM = genera_samaccountname(nome, cognome, secondo_nome, secondo_cognome, False)
     cn = build_full_name(cognome, secondo_cognome, nome, secondo_nome, False)
-    table_md = f"""
-| Campo             | Valore                                     |
-|-------------------|--------------------------------------------|
-| Tipo Utenza       | Remota                                     |
-| Utenza            | {sAM}                                      |
-| Alias             | {sAM}                                      |
-| Display name      | {cn}                                       |
-| Common name       | {cn}                                       |
-| e-mail            | {sAM}@consip.it                            |
-| e-mail secondaria | {sAM}@consipspa.mail.onmicrosoft.com       |
-"""
+    table_md = (
+        "| Campo             | Valore                                     |\n"
+        "|-------------------|--------------------------------------------|\n"
+        f"| Tipo Utenza       | Remota                                     |\n"
+        f"| Utenza            | {sAM}                                      |\n"
+        f"| Alias             | {sAM}                                      |\n"
+        f"| Display name      | {cn}                                       |\n"
+        f"| Common name       | {cn}                                       |\n"
+        f"| e-mail            | {sAM}@consip.it                            |\n"
+        f"| e-mail secondaria | {sAM}@consipspa.mail.onmicrosoft.com       |\n"
+    )
     st.markdown("Ciao.  \nRichiedo cortesemente la definizione di una casella di posta come sottoindicato.")
     st.markdown(table_md)
     # Nota: la lista dei gruppi O365 è stata rimossa da qui. Il CSV O365 verrà generato separatamente.
@@ -214,9 +218,78 @@ if st.button("Genera CSV"):
         # fallback: se non troviamo il campo, appendiamo alla fine come ultima colonna
         row_o365.append(gruppi_o365_str)
 
-    st.markdown(rf"""
-Ciao.  
-Si richiede modifiche come da file:  
-- `{basename}_computer.csv`  (oggetti di tipo computer)  
-- `{basename}_utente.csv`  (oggetti di tipo utenze)  
-- `{basename}_o365.csv`  (assegnazione gruppi O365)_
+    # Messaggio di riepilogo — use ARCHIVE_PATH variable (raw) to avoid escape issues
+    msg = (
+        "Ciao.\n"
+        "Si richiede modifiche come da file:\n"
+        f"- `{basename}_computer.csv`  (oggetti di tipo computer)\n"
+        f"- `{basename}_utente.csv`  (oggetti di tipo utenze)\n"
+        f"- `{basename}_o365.csv`  (assegnazione gruppi O365)\n\n"
+        f"Archiviati al percorso:\n`{ARCHIVE_PATH}`\n\n"
+        "Grazie"
+    )
+    st.markdown(msg)
+
+    st.subheader("Anteprima CSV Utente")
+    st.dataframe(pd.DataFrame([row_ut], columns=HEADER_UTENTE))
+    st.subheader("Anteprima CSV Computer")
+    st.dataframe(pd.DataFrame([row_cp], columns=HEADER_COMPUTER))
+    st.subheader("Anteprima CSV O365")
+    st.dataframe(pd.DataFrame([row_o365], columns=HEADER_UTENTE))
+
+    # Download CSV Utente
+    buf_user = io.StringIO()
+    w1 = csv.writer(buf_user, quoting=csv.QUOTE_NONE, escapechar="\\")
+    # applichiamo l'auto-quote su row_ut
+    quoted_row_ut = auto_quote(
+        row_ut,
+        quotechar='"',
+        predicate=lambda s: ' ' in s  # mette virgolette solo se c'è uno spazio
+    )
+    w1.writerow(HEADER_UTENTE)
+    w1.writerow(quoted_row_ut)
+    buf_user.seek(0)
+
+    # Download CSV Computer
+    buf_comp = io.StringIO()
+    w2 = csv.writer(buf_comp, quoting=csv.QUOTE_NONE, escapechar="\\")
+    quoted_row_cp = auto_quote(
+        row_cp,
+        quotechar='"',
+        predicate=lambda s: ' ' in s
+    )
+    w2.writerow(HEADER_COMPUTER)
+    w2.writerow(quoted_row_cp)
+    buf_comp.seek(0)
+
+    # Download CSV O365
+    buf_o365 = io.StringIO()
+    w3 = csv.writer(buf_o365, quoting=csv.QUOTE_NONE, escapechar="\\")
+    quoted_row_o365 = auto_quote(
+        row_o365,
+        quotechar='"',
+        predicate=lambda s: ' ' in s
+    )
+    w3.writerow(HEADER_UTENTE)
+    w3.writerow(quoted_row_o365)
+    buf_o365.seek(0)
+
+    st.download_button(
+        "📥 Scarica CSV Utente",
+        data=buf_user.getvalue(),
+        file_name=f"{basename}_utente.csv",
+        mime="text/csv"
+    )
+    st.download_button(
+        "📥 Scarica CSV Computer",
+        data=buf_comp.getvalue(),
+        file_name=f"{basename}_computer.csv",
+        mime="text/csv"
+    )
+    st.download_button(
+        "📥 Scarica CSV O365",
+        data=buf_o365.getvalue(),
+        file_name=f"{basename}_o365.csv",
+        mime="text/csv"
+    )
+    st.success(f"✅ CSV generati per '{sAM}'")
