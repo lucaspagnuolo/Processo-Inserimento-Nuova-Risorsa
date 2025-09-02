@@ -17,15 +17,15 @@ def load_config_from_bytes(data: bytes):
     else:
         ris = pd.DataFrame()
 
-    ou_df = ris[ris["Section"] == "OU"][["Key/App","Label/Gruppi/Value"]].rename(
+    ou_df = ris[ris["Section"] == "OU"][["Key/App", "Label/Gruppi/Value"]].rename(
         columns={"Key/App": "key", "Label/Gruppi/Value": "label"})
     ou_options = dict(zip(ou_df["key"], ou_df["label"]))
 
-    grp_df = ris[ris["Section"] == "InserimentoGruppi"][["Key/App","Label/Gruppi/Value"]].rename(
+    grp_df = ris[ris["Section"] == "InserimentoGruppi"][["Key/App", "Label/Gruppi/Value"]].rename(
         columns={"Key/App": "app", "Label/Gruppi/Value": "gruppi"})
     gruppi = dict(zip(grp_df["app"], grp_df["gruppi"]))
 
-    def_df = ris[ris["Section"] == "Defaults"][["Key/App","Label/Gruppi/Value"]].rename(
+    def_df = ris[ris["Section"] == "Defaults"][["Key/App", "Label/Gruppi/Value"]].rename(
         columns={"Key/App": "key", "Label/Gruppi/Value": "value"})
     defaults = dict(zip(def_df["key"], def_df["value"]))
 
@@ -133,17 +133,21 @@ resident_flag    = st.checkbox("È Resident?")
 numero_fisso     = st.text_input("Numero fisso Resident (+39 già inserito)", "").strip() if resident_flag else ""
 telephone_number = f"+39 {numero_fisso}" if resident_flag and numero_fisso else defaults.get("telephone_interna", "")
 
-ou_vals           = list(ou_options.values())
-def_o             = defaults.get("ou_default", ou_vals[0] if ou_vals else "")
-label_ou          = st.selectbox("Tipologia Utente", ou_vals, index=ou_vals.index(def_o))
-selected_key      = list(ou_options.keys())[ou_vals.index(label_ou)]
-ou_value          = ou_options[selected_key]
+ou_vals = list(ou_options.values())
+# gestione defensiva dell'index per il selectbox (evita errori se def_o non è nella lista)
+def_o = defaults.get("ou_default", ou_vals[0] if ou_vals else "")
+index_default = 0
+if def_o in ou_vals:
+    index_default = ou_vals.index(def_o)
+label_ou = st.selectbox("Tipologia Utente", ou_vals, index=index_default) if ou_vals else st.text_input("Tipologia Utente", "")
+selected_key = list(ou_options.keys())[ou_vals.index(label_ou)] if ou_vals else ""
+ou_value = ou_options[selected_key] if ou_vals else ""
 inserimento_gruppo = gruppi.get("interna", "")
-company           = defaults.get("company_interna", "")
+company = defaults.get("company_interna", "")
 
 data_operativa = st.text_input("Data operatività (gg/mm/aaaa)", "").strip()
-profilazione    = st.checkbox("Profilazione SM?")
-sm_lines        = st.text_area("SM (una per riga)", "").splitlines() if profilazione else []
+profilazione = st.checkbox("Profilazione SM?")
+sm_lines = st.text_area("SM (una per riga)", "").splitlines() if profilazione else []
 
 dl_list = dl_standard if selected_key == "utenti_standard" else dl_vip if selected_key == "utenti_vip" else []
 
@@ -184,7 +188,7 @@ if st.button("Genera CSV"):
     norm_cognome = normalize_name(cognome)
     norm_secondo = normalize_name(secondo_cognome) if secondo_cognome else ''
     name_parts = [cognome] + ([secondo_cognome] if secondo_cognome else []) + [nome[:1]]
-    basename = "_".join(name_parts)
+    basename = "_".join([p for p in name_parts if p])
     given = f"{nome} {secondo_nome}".strip()
     surn = f"{cognome} {secondo_cognome}".strip()
     mobile = f"+39 {numero_telefono}" if numero_telefono else ""
@@ -210,77 +214,9 @@ if st.button("Genera CSV"):
         # fallback: se non troviamo il campo, appendiamo alla fine come ultima colonna
         row_o365.append(gruppi_o365_str)
 
-    st.markdown(f"""
+    st.markdown(rf"""
 Ciao.  
 Si richiede modifiche come da file:  
 - `{basename}_computer.csv`  (oggetti di tipo computer)  
 - `{basename}_utente.csv`  (oggetti di tipo utenze)  
-- `{basename}_o365.csv`  (assegnazione gruppi O365)  
-Archiviati al percorso:  
-`\\\\srv_dati.consip.tesoro.it\AreaCondivisa\DEPSI\IC\AD_Modifiche`  
-Grazie
-""")
-
-    st.subheader("Anteprima CSV Utente")
-    st.dataframe(pd.DataFrame([row_ut], columns=HEADER_UTENTE))
-    st.subheader("Anteprima CSV Computer")
-    st.dataframe(pd.DataFrame([row_cp], columns=HEADER_COMPUTER))
-    st.subheader("Anteprima CSV O365")
-    st.dataframe(pd.DataFrame([row_o365], columns=HEADER_UTENTE))
-
-    # Download CSV Utente
-    buf_user = io.StringIO()
-    w1 = csv.writer(buf_user, quoting=csv.QUOTE_NONE, escapechar="\\")
-    # applichiamo l'auto-quote su row_ut
-    quoted_row_ut = auto_quote(
-        row_ut,
-        quotechar='"',
-        predicate=lambda s: ' ' in s  # mette virgolette solo se c'è uno spazio
-    )
-    w1.writerow(HEADER_UTENTE)
-    w1.writerow(quoted_row_ut)
-    buf_user.seek(0)
-
-    # Download CSV Computer
-    buf_comp = io.StringIO()
-    w2 = csv.writer(buf_comp, quoting=csv.QUOTE_NONE, escapechar="\\")
-    quoted_row_cp = auto_quote(
-        row_cp,
-        quotechar='"',
-        predicate=lambda s: ' ' in s
-    )
-    w2.writerow(HEADER_COMPUTER)
-    w2.writerow(quoted_row_cp)
-    buf_comp.seek(0)
-
-    # Download CSV O365
-    buf_o365 = io.StringIO()
-    w3 = csv.writer(buf_o365, quoting=csv.QUOTE_NONE, escapechar="\\")
-    quoted_row_o365 = auto_quote(
-        row_o365,
-        quotechar='"',
-        predicate=lambda s: ' ' in s
-    )
-    w3.writerow(HEADER_UTENTE)
-    w3.writerow(quoted_row_o365)
-    buf_o365.seek(0)
-
-    st.download_button(
-        "📥 Scarica CSV Utente",
-        data=buf_user.getvalue(),
-        file_name=f"{basename}_utente.csv",
-        mime="text/csv"
-    )
-    st.download_button(
-        "📥 Scarica CSV Computer",
-        data=buf_comp.getvalue(),
-        file_name=f"{basename}_computer.csv",
-        mime="text/csv"
-    )
-    st.download_button(
-        "📥 Scarica CSV O365",
-        data=buf_o365.getvalue(),
-        file_name=f"{basename}_o365.csv",
-        mime="text/csv"
-    )
-    st.success(f"✅ CSV generati per '{sAM}'")
+- `{basename}_o365.csv`  (assegnazione gruppi O365)_
