@@ -74,6 +74,7 @@ def auto_quote(fields, quotechar='"', predicate=lambda s: ' ' in s):
         else:
             out.append(s)
     return out
+
 def normalize_name(s: str) -> str:
     nfkd = unicodedata.normalize('NFKD', s)
     ascii_str = nfkd.encode('ASCII', 'ignore').decode()
@@ -150,7 +151,6 @@ dl_list = dl_standard if selected_key == "utenti_standard" else dl_vip if select
 if st.button("Template per Posta Elettronica"):
     sAM = genera_samaccountname(nome, cognome, secondo_nome, secondo_cognome, False)
     cn = build_full_name(cognome, secondo_cognome, nome, secondo_nome, False)
-    groups_md = "\n".join(f"- {g}" for g in o365_groups)
     table_md = f"""
 | Campo             | Valore                                     |
 |-------------------|--------------------------------------------|
@@ -164,7 +164,8 @@ if st.button("Template per Posta Elettronica"):
 """
     st.markdown("Ciao.  \nRichiedo cortesemente la definizione di una casella di posta come sottoindicato.")
     st.markdown(table_md)
-    st.markdown(f"Inviare batch di notifica migrazione mail a: imac@consip.it  \nAggiungere utenza di dominio ai gruppi:\n{groups_md}")
+    # Nota: la lista dei gruppi O365 è stata rimossa da qui. Il CSV O365 verrà generato separatamente.
+    st.markdown("_La lista dei gruppi O365 è stata rimossa da questo template. Verrà generato un CSV separato contenente i gruppi O365 da assegnare all'utenza._")
     if dl_list:
         st.markdown(f"Il giorno **{data_operativa}** occorre inserire la casella nelle DL:")
         for dl in dl_list:
@@ -176,14 +177,12 @@ if st.button("Template per Posta Elettronica"):
     st.markdown(f"Aggiungere utenza al:\n- gruppo Azure: {grp_foorban}\n- canale {pillole}")
     st.markdown("Grazie  \nSaluti")
 
-# Generazione CSV Utente + Computer
-if st.button("Genera CSV"):    
+# Generazione CSV Utente + Computer + O365
+if st.button("Genera CSV"):
     sAM = genera_samaccountname(nome, cognome, secondo_nome, secondo_cognome, False)
     cn = build_full_name(cognome, secondo_cognome, nome, secondo_nome, False)
     norm_cognome = normalize_name(cognome)
     norm_secondo = normalize_name(secondo_cognome) if secondo_cognome else ''
-    name_parts = [norm_cognome] + ([norm_secondo] if norm_secondo else []) + [nome[:1].lower()]
-    basename = "_".join(name_parts)
     name_parts = [cognome] + ([secondo_cognome] if secondo_cognome else []) + [nome[:1]]
     basename = "_".join(name_parts)
     given = f"{nome} {secondo_nome}".strip()
@@ -200,22 +199,36 @@ if st.button("Genera CSV"):
         description or "", "", f"{sAM}@consip.it", "", mobile, "", cn, "", "", ""
     ]
 
+    # CSV O365: manteniamo lo stesso header di utente ma popoliamo solo sAMAccountName e InserimentoGruppo
+    gruppi_o365_str = ";".join(o365_groups)  # lista gruppi unita con ;
+    row_o365 = [""] * len(HEADER_UTENTE)
+    row_o365[0] = sAM
+    try:
+        idx_inserimento = HEADER_UTENTE.index("InserimentoGruppo")
+        row_o365[idx_inserimento] = gruppi_o365_str
+    except ValueError:
+        # fallback: se non troviamo il campo, appendiamo alla fine come ultima colonna
+        row_o365.append(gruppi_o365_str)
+
     st.markdown(f"""
 Ciao.  
 Si richiede modifiche come da file:  
 - `{basename}_computer.csv`  (oggetti di tipo computer)  
 - `{basename}_utente.csv`  (oggetti di tipo utenze)  
+- `{basename}_o365.csv`  (assegnazione gruppi O365)  
 Archiviati al percorso:  
 `\\\\srv_dati.consip.tesoro.it\AreaCondivisa\DEPSI\IC\AD_Modifiche`  
 Grazie
-"""
-    )
+""")
+
     st.subheader("Anteprima CSV Utente")
     st.dataframe(pd.DataFrame([row_ut], columns=HEADER_UTENTE))
     st.subheader("Anteprima CSV Computer")
     st.dataframe(pd.DataFrame([row_cp], columns=HEADER_COMPUTER))
+    st.subheader("Anteprima CSV O365")
+    st.dataframe(pd.DataFrame([row_o365], columns=HEADER_UTENTE))
 
-    # Download
+    # Download CSV Utente
     buf_user = io.StringIO()
     w1 = csv.writer(buf_user, quoting=csv.QUOTE_NONE, escapechar="\\")
     # applichiamo l'auto-quote su row_ut
@@ -228,9 +241,9 @@ Grazie
     w1.writerow(quoted_row_ut)
     buf_user.seek(0)
 
+    # Download CSV Computer
     buf_comp = io.StringIO()
     w2 = csv.writer(buf_comp, quoting=csv.QUOTE_NONE, escapechar="\\")
-    # idem per row_cp
     quoted_row_cp = auto_quote(
         row_cp,
         quotechar='"',
@@ -239,6 +252,18 @@ Grazie
     w2.writerow(HEADER_COMPUTER)
     w2.writerow(quoted_row_cp)
     buf_comp.seek(0)
+
+    # Download CSV O365
+    buf_o365 = io.StringIO()
+    w3 = csv.writer(buf_o365, quoting=csv.QUOTE_NONE, escapechar="\\")
+    quoted_row_o365 = auto_quote(
+        row_o365,
+        quotechar='"',
+        predicate=lambda s: ' ' in s
+    )
+    w3.writerow(HEADER_UTENTE)
+    w3.writerow(quoted_row_o365)
+    buf_o365.seek(0)
 
     st.download_button(
         "📥 Scarica CSV Utente",
@@ -250,6 +275,12 @@ Grazie
         "📥 Scarica CSV Computer",
         data=buf_comp.getvalue(),
         file_name=f"{basename}_computer.csv",
+        mime="text/csv"
+    )
+    st.download_button(
+        "📥 Scarica CSV O365",
+        data=buf_o365.getvalue(),
+        file_name=f"{basename}_o365.csv",
         mime="text/csv"
     )
     st.success(f"✅ CSV generati per '{sAM}'")
