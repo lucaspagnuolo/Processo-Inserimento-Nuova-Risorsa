@@ -173,7 +173,7 @@ if st.button("Template per Posta Elettronica"):
     st.markdown("Ciao.  \nRichiedo cortesemente la definizione di una casella di posta come sottoindicato.")
     st.markdown(table_md)
     # Nota: la lista dei gruppi O365 è stata rimossa da qui. Il CSV O365 verrà generato separatamente.
-    st.markdown("_La lista dei gruppi O365 è stata rimossa da questo template. Verrà generato un CSV separato contenente i gruppi O365 da assegnare all'utenza._")
+    
     if dl_list:
         st.markdown(f"Il giorno **{data_operativa}** occorre inserire la casella nelle DL:")
         for dl in dl_list:
