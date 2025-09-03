@@ -151,7 +151,7 @@ if def_o in ou_vals:
 label_ou = st.selectbox("Tipologia Utente", ou_vals, index=index_default) if ou_vals else st.text_input("Tipologia Utente", "")
 selected_key = list(ou_options.keys())[ou_vals.index(label_ou)] if ou_vals else ""
 ou_value = ou_options[selected_key] if ou_vals else ""
-inserimento_gruppo = gruppi.get("interna", "")
+#inserimento_gruppo = gruppi.get("interna", "")
 company = defaults.get("company_interna", "")
 
 data_operativa = st.text_input("Data operatività (gg/mm/aaaa)", "").strip()
