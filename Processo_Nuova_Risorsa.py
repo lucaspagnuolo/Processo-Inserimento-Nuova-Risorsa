@@ -71,7 +71,7 @@ grp_salesforce = defaults.get("grp_salesforce", "")  # <-- lettura grp_salesforc
 pillole = defaults.get("pillole", "")
 
 # Percorso di archivio (raw string per evitare escape warnings)
-ARCHIVE_PATH = r"\\srv_dati.consip.tesoro.it\AreaCondivisa\DEPSI\IC\AD_Modifiche"
+ARCHIVE_PATH = r"\\\\srv_dati.consip.tesoro.it\AreaCondivisa\DEPSI\IC\AD_Modifiche"
 
 # Utility functions
 def auto_quote(fields, quotechar='"', predicate=lambda s: ' ' in s):
