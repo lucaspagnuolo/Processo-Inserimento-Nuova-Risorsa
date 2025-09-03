@@ -152,6 +152,7 @@ label_ou = st.selectbox("Tipologia Utente", ou_vals, index=index_default) if ou_
 selected_key = list(ou_options.keys())[ou_vals.index(label_ou)] if ou_vals else ""
 ou_value = ou_options[selected_key] if ou_vals else ""
 #inserimento_gruppo = gruppi.get("interna", "")
+inserimento_gruppo = ""
 company = defaults.get("company_interna", "")
 
 data_operativa = st.text_input("Data operatività (gg/mm/aaaa)", "").strip()
@@ -194,10 +195,6 @@ if st.button("Template per Posta Elettronica"):
         st.markdown(f"- {grp_salesforce}")
     if pillole:
         st.markdown(f"- canale {pillole}")
-    if inserimento_gruppo:
-        st.markdown("**InserimentoGruppo (da file 'InserimentoGruppi' / CSV utente):**")
-        for g in [x.strip() for x in str(inserimento_gruppo).split(";") if x.strip()]:
-            st.markdown(f"- {g}")
 
     st.markdown("Grazie  \nSaluti")
 
