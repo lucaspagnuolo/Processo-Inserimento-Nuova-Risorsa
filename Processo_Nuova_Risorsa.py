@@ -221,6 +221,7 @@ if st.button("Genera CSV"):
     ]
 
     existing_o365 = list(o365_groups)
+    inserimento_gruppo = gruppi.get("interna", "")
     inser_gr_raw = inserimento_gruppo or ""
     inser_list = [g.strip() for g in str(inser_gr_raw).split(";") if g.strip()]
     merged_profilazione = existing_o365[:]
