@@ -58,6 +58,7 @@ dl_standard = defaults.get("dl_standard", "").split(";") if defaults.get("dl_sta
 dl_vip = defaults.get("dl_vip", "").split(";") if defaults.get("dl_vip") else []
 o365_groups = [v for k, v in defaults.items() if k.startswith("grp_o365_")]
 grp_foorban = defaults.get("grp_foorban", "")
+grp_salesforce = defaults.get("grp_salesforce", "")  # <-- nuova riga lettura grp_salesforce
 pillole = defaults.get("pillole", "")
 
 # Percorso di archivio (raw string per evitare escape warnings)
@@ -173,7 +174,7 @@ if st.button("Template per Posta Elettronica"):
     st.markdown("Ciao.  \nRichiedo cortesemente la definizione di una casella di posta come sottoindicato.")
     st.markdown(table_md)
     # Nota: la lista dei gruppi O365 è stata rimossa da qui. Il CSV O365 verrà generato separatamente.
-    
+    st.markdown("_La lista dei gruppi O365 è stata rimossa da questo template. Verrà generato un CSV separato contenente i gruppi O365 da assegnare all'utenza._")
     if dl_list:
         st.markdown(f"Il giorno **{data_operativa}** occorre inserire la casella nelle DL:")
         for dl in dl_list:
@@ -182,7 +183,14 @@ if st.button("Template per Posta Elettronica"):
         st.markdown("Profilare su SM:")
         for sm in sm_lines:
             st.markdown(f"- {sm}")
-    st.markdown(f"Aggiungere utenza al:\n- gruppo Azure: {grp_foorban}\n- canale {pillole}")
+    # Qui ho modificato la visualizzazione richiesta: - gruppo Azure: (a capo) - grp_foorban - grp_salesforce
+    st.markdown(
+        "Aggiungere utenza al:\n"
+        "- gruppo Azure:\n"
+        f"- {grp_foorban}\n"
+        f"- {grp_salesforce}\n"
+        f"- canale {pillole}"
+    )
     st.markdown("Grazie  \nSaluti")
 
 # Generazione CSV Utente + Computer + O365
