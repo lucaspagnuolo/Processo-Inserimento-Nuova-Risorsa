@@ -185,8 +185,7 @@ if st.button("Template per Posta Elettronica"):
             st.markdown(f"- {sm}")
     # Qui ho modificato la visualizzazione richiesta: - gruppo Azure: (a capo) - grp_foorban - grp_salesforce
     st.markdown(
-        "Aggiungere utenza al:\n"
-        "- gruppo Azure:\n"
+        "Aggiungere utenza al gruppo Azure:\n"
         f"- {grp_foorban}\n"
         f"- {grp_salesforce}\n"
         f"- canale {pillole}"
