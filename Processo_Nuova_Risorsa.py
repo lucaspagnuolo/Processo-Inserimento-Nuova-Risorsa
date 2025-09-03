@@ -58,7 +58,7 @@ dl_standard = defaults.get("dl_standard", "").split(";") if defaults.get("dl_sta
 dl_vip = defaults.get("dl_vip", "").split(";") if defaults.get("dl_vip") else []
 o365_groups = [v for k, v in defaults.items() if k.startswith("grp_o365_")]
 grp_foorban = defaults.get("grp_foorban", "")
-grp_salesforce = defaults.get("grp_salesforce", "")  # <-- nuova riga lettura grp_salesforce
+grp_salesforce = defaults.get("grp_salesforce", "")
 pillole = defaults.get("pillole", "")
 
 # Percorso di archivio (raw string per evitare escape warnings)
@@ -147,7 +147,7 @@ if def_o in ou_vals:
 label_ou = st.selectbox("Tipologia Utente", ou_vals, index=index_default) if ou_vals else st.text_input("Tipologia Utente", "")
 selected_key = list(ou_options.keys())[ou_vals.index(label_ou)] if ou_vals else ""
 ou_value = ou_options[selected_key] if ou_vals else ""
-inserimento_gruppo = gruppi.get("interna", "")
+inserimento_gruppo = gruppi.get("interna", "")  # questo valore verrà spostato nel CSV profilazione
 company = defaults.get("company_interna", "")
 
 data_operativa = st.text_input("Data operatività (gg/mm/aaaa)", "").strip()
@@ -173,8 +173,8 @@ if st.button("Template per Posta Elettronica"):
     )
     st.markdown("Ciao.  \nRichiedo cortesemente la definizione di una casella di posta come sottoindicato.")
     st.markdown(table_md)
-    # Nota: la lista dei gruppi O365 è stata rimossa da qui. Il CSV O365 verrà generato separatamente.
-    st.markdown("_La lista dei gruppi O365 è stata rimossa da questo template. Verrà generato un CSV separato contenente i gruppi O365 da assegnare all'utenza._")
+    # Nota: la lista dei gruppi O365 è stata rimossa da qui. Il CSV profilazione verrà generato separatamente.
+    st.markdown("_La lista dei gruppi O365 / di inserimento gruppo è stata rimossa da questo template. Verrà generato un CSV separato (profilazione) contenente i gruppi da assegnare all'utenza._")
     if dl_list:
         st.markdown(f"Il giorno **{data_operativa}** occorre inserire la casella nelle DL:")
         for dl in dl_list:
@@ -183,16 +183,17 @@ if st.button("Template per Posta Elettronica"):
         st.markdown("Profilare su SM:")
         for sm in sm_lines:
             st.markdown(f"- {sm}")
-    # Qui ho modificato la visualizzazione richiesta: - gruppo Azure: (a capo) - grp_foorban - grp_salesforce
-    st.markdown(
-        "Aggiungere utenza al gruppo Azure:\n"
-        f"- {grp_foorban}\n"
-        f"- {grp_salesforce}\n"
-        f"- canale {pillole}"
-    )
+    # Visualizzazione richiesta: elenco gruppi (Azure, Salesforce, canale)
+    parts = ["Aggiungere utenza al gruppo Azure:"]
+    if grp_foorban:
+        parts.append(f"- {grp_foorban}")
+    if grp_salesforce:
+        parts.append(f"- {grp_salesforce}")
+    parts.append(f"- canale {pillole}")
+    st.markdown("\n".join(parts))
     st.markdown("Grazie  \nSaluti")
 
-# Generazione CSV Utente + Computer + O365
+# Generazione CSV Utente + Computer + Profilazione
 if st.button("Genera CSV"):
     sAM = genera_samaccountname(nome, cognome, secondo_nome, secondo_cognome, False)
     cn = build_full_name(cognome, secondo_cognome, nome, secondo_nome, False)
@@ -204,26 +205,27 @@ if st.button("Genera CSV"):
     surn = f"{cognome} {secondo_cognome}".strip()
     mobile = f"+39 {numero_telefono}" if numero_telefono else ""
 
+    # Qui: InserimentoGruppo nel CSV utente viene lasciato vuoto (il valore viene spostato nel CSV profilazione)
     row_ut = [
         sAM, "SI", ou_value, cn, cn, cn, given, surn,
         codice_fiscale, employee_id, department, description or "<PC>",
         "No", "", f"{sAM}@consip.it", f"{sAM}@consip.it", mobile,
-        "", inserimento_gruppo, "", "", telephone_number, company
+        "", "", "", "", telephone_number, company
     ]
     row_cp = [
         description or "", "", f"{sAM}@consip.it", "", mobile, "", cn, "", "", ""
     ]
 
-    # CSV O365: manteniamo lo stesso header di utente ma popoliamo solo sAMAccountName e InserimentoGruppo
-    gruppi_o365_str = ";".join(o365_groups)  # lista gruppi unita con ;
-    row_o365 = [""] * len(HEADER_UTENTE)
-    row_o365[0] = sAM
+    # CSV Profilazione: manteniamo lo stesso header di utente ma popoliamo sAMAccountName e InserimentoGruppo
+    profile_groups = inserimento_gruppo or ""  # il contenuto preso dal campo 'inserimento_gruppo'
+    row_profilazione = [""] * len(HEADER_UTENTE)
+    row_profilazione[0] = sAM
     try:
         idx_inserimento = HEADER_UTENTE.index("InserimentoGruppo")
-        row_o365[idx_inserimento] = gruppi_o365_str
+        row_profilazione[idx_inserimento] = profile_groups
     except ValueError:
-        # fallback: se non troviamo il campo, appendiamo alla fine come ultima colonna
-        row_o365.append(gruppi_o365_str)
+        # fallback: appendiamo alla fine se non troviamo il campo
+        row_profilazione.append(profile_groups)
 
     # Messaggio di riepilogo — use ARCHIVE_PATH variable (raw) to avoid escape issues
     msg = (
@@ -231,7 +233,7 @@ if st.button("Genera CSV"):
         "Si richiede modifiche come da file:\n"
         f"- `{basename}_computer.csv`  (oggetti di tipo computer)\n"
         f"- `{basename}_utente.csv`  (oggetti di tipo utenze)\n"
-        f"- `{basename}_o365.csv`  (assegnazione gruppi O365)\n\n"
+        f"- `{basename}_profilazione.csv`  (assegnazione gruppi / profilazione)\n\n"
         f"Archiviati al percorso:\n`{ARCHIVE_PATH}`\n\n"
         "Grazie"
     )
@@ -241,8 +243,8 @@ if st.button("Genera CSV"):
     st.dataframe(pd.DataFrame([row_ut], columns=HEADER_UTENTE))
     st.subheader("Anteprima CSV Computer")
     st.dataframe(pd.DataFrame([row_cp], columns=HEADER_COMPUTER))
-    st.subheader("Anteprima CSV O365")
-    st.dataframe(pd.DataFrame([row_o365], columns=HEADER_UTENTE))
+    st.subheader("Anteprima CSV Profilazione")
+    st.dataframe(pd.DataFrame([row_profilazione], columns=HEADER_UTENTE))
 
     # Download CSV Utente
     buf_user = io.StringIO()
@@ -269,17 +271,17 @@ if st.button("Genera CSV"):
     w2.writerow(quoted_row_cp)
     buf_comp.seek(0)
 
-    # Download CSV O365
-    buf_o365 = io.StringIO()
-    w3 = csv.writer(buf_o365, quoting=csv.QUOTE_NONE, escapechar="\\")
-    quoted_row_o365 = auto_quote(
-        row_o365,
+    # Download CSV Profilazione
+    buf_profil = io.StringIO()
+    w3 = csv.writer(buf_profil, quoting=csv.QUOTE_NONE, escapechar="\\")
+    quoted_row_profil = auto_quote(
+        row_profilazione,
         quotechar='"',
         predicate=lambda s: ' ' in s
     )
     w3.writerow(HEADER_UTENTE)
-    w3.writerow(quoted_row_o365)
-    buf_o365.seek(0)
+    w3.writerow(quoted_row_profil)
+    buf_profil.seek(0)
 
     st.download_button(
         "📥 Scarica CSV Utente",
@@ -294,9 +296,9 @@ if st.button("Genera CSV"):
         mime="text/csv"
     )
     st.download_button(
-        "📥 Scarica CSV O365",
-        data=buf_o365.getvalue(),
-        file_name=f"{basename}_o365.csv",
+        "📥 Scarica CSV Profilazione",
+        data=buf_profil.getvalue(),
+        file_name=f"{basename}_profilazione.csv",
         mime="text/csv"
     )
     st.success(f"✅ CSV generati per '{sAM}'")
