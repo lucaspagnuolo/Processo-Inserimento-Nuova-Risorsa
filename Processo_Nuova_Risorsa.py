@@ -72,7 +72,7 @@ for k, v in defaults.items():
             o365_groups.append(token)
 
 grp_foorban = defaults.get("grp_foorban", "")
-grp_salesforce = defaults.get("grp_salesforce", "")  # <-- lettura grp_salesforce
+grp_salesforce = defaults.get("grp_salesforce", "")
 pillole = defaults.get("pillole", "")
 
 # Percorso di archivio (raw string per evitare escape warnings)
@@ -258,6 +258,7 @@ if st.button("Genera CSV"):
         # se per qualche motivo l'header non c'è, appendiamo comunque il valore
         row_profilazione.append(gruppi_profilazione_str)
 
+    # --- messaggi (testo mostrato a video) ---
     msg_utente = (
         "Salve.\n"
         "Vi richiediamo la definizione della utenza nell’AD Consip come dettagliato nei file:\n"
@@ -265,7 +266,7 @@ if st.button("Genera CSV"):
         "Restiamo in attesa di un vostro riscontro ad attività completata.\n"
         "Saluti"
     )
-    
+
     msg_computer = (
         "Salve.\n"
         "Si richiede modifiche come da file:\n"
@@ -273,7 +274,7 @@ if st.button("Genera CSV"):
         "Restiamo in attesa di un vostro riscontro ad attività completata.\n"
         "Saluti"
     )
-    
+
     msg_profilazione = (
         "Salve.\n"
         "Si richiede modifiche come da file:\n"
@@ -281,12 +282,13 @@ if st.button("Genera CSV"):
         "Restiamo in attesa di un vostro riscontro ad attività completata.\n"
         "Saluti"
     )
-    
+
+    # --- mostra a video ---
     st.subheader(f"Nuova Utenza AD [{cognome}]")
     st.text(msg_utente)
     st.subheader("Anteprima CSV Utente")
     st.dataframe(pd.DataFrame([row_ut], columns=HEADER_UTENTE))
-    
+
     def prepara_csv(row, header):
         buf = io.StringIO()
         w = csv.writer(buf, quoting=csv.QUOTE_NONE, escapechar="\\")
@@ -295,11 +297,11 @@ if st.button("Genera CSV"):
         w.writerow(quoted)
         buf.seek(0)
         return buf
-    
+
     buf_user = prepara_csv(row_ut, HEADER_UTENTE)
     buf_comp = prepara_csv(row_cp, HEADER_COMPUTER)
     buf_prof = prepara_csv(row_profilazione, HEADER_UTENTE)
-    
+
     # download subito sotto anteprima utente
     st.download_button(
         "📥 Scarica CSV Utente",
@@ -307,12 +309,12 @@ if st.button("Genera CSV"):
         file_name=f"{basename}_utente.csv",
         mime="text/csv"
     )
-    
+
     st.subheader(f"Modifica AD Computer [{cognome}]")
     st.text(msg_computer)
     st.subheader("Anteprima CSV Computer")
     st.dataframe(pd.DataFrame([row_cp], columns=HEADER_COMPUTER))
-    
+
     # download subito sotto anteprima computer
     st.download_button(
         "📥 Scarica CSV Computer",
@@ -320,12 +322,12 @@ if st.button("Genera CSV"):
         file_name=f"{basename}_computer.csv",
         mime="text/csv"
     )
-    
+
     st.subheader(f"Modifica AD Profilazione [{cognome}]")
     st.text(msg_profilazione)
     st.subheader("Anteprima CSV Profilazione")
     st.dataframe(pd.DataFrame([row_profilazione], columns=HEADER_UTENTE))
-    
+
     # download subito sotto anteprima profilazione
     st.download_button(
         "📥 Scarica CSV Profilazione",
@@ -333,20 +335,69 @@ if st.button("Genera CSV"):
         file_name=f"{basename}_profilazione.csv",
         mime="text/csv"
     )
-    
-    # --- Download ZIP unico (alla fine della pagina) ---
+
+    # -------------------------------------------
+    # Preparo l'anteprima template in formato Markdown (da inserire SOLO nello ZIP)
+    # -------------------------------------------
+    table_md = (
+        "| Campo             | Valore                                      |\n"
+        "|-------------------|---------------------------------------------|\n"
+        f"| Tipo Utenza       | Remota                                      |\n"
+        f"| Utenza            | {sAM}                                       |\n"
+        f"| Alias             | {sAM}                                       |\n"
+        f"| Display name      | {cn}                                        |\n"
+        f"| Common name       | {cn}                                        |\n"
+        f"| e-mail            | {sAM}@consip.it                              |\n"
+        f"| e-mail secondaria | {sAM}@consipspa.mail.onmicrosoft.com        |\n"
+    )
+
+    template_preview_lines = []
+    template_preview_lines.append("Richiesta definizione casella - anteprima template\n")
+    template_preview_lines.append(table_md)
+    if dl_list:
+        template_preview_lines.append(f"\nIl giorno {data_operativa} occorre inserire la casella nelle DL:\n")
+        for dl in dl_list:
+            template_preview_lines.append(f"- {dl}\n")
+    if profilazione:
+        template_preview_lines.append("\nProfilare su SM:\n")
+        for sm in sm_lines:
+            template_preview_lines.append(f"- {sm}\n")
+
+    if grp_foorban:
+        template_preview_lines.append(f"\nAggiungere utenza al gruppo Azure:\n- {grp_foorban}\n")
+    if grp_salesforce:
+        template_preview_lines.append(f"- {grp_salesforce}\n")
+    if pillole:
+        template_preview_lines.append(f"- canale {pillole}\n")
+
+    # unisco tutto in una stringa markdown
+    template_preview_md = "\n".join(template_preview_lines)
+
+    # -------------------------------------------
+    # Creo lo ZIP con i 3 CSV + file di anteprima template + 3 messaggi .txt
+    # (i file "msg_*.txt" e "template_preview.md" saranno presenti SOLO nello ZIP)
+    # -------------------------------------------
     zip_buffer = io.BytesIO()
     with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zipf:
+        # CSV
         zipf.writestr(f"{basename}_utente.csv", buf_user.getvalue())
         zipf.writestr(f"{basename}_computer.csv", buf_comp.getvalue())
         zipf.writestr(f"{basename}_profilazione.csv", buf_prof.getvalue())
+        # anteprima template (markdown)
+        zipf.writestr(f"{basename}_template_preview.md", template_preview_md)
+        # messaggi (solo testo)
+        zipf.writestr(f"{basename}_msg_utente.txt", msg_utente)
+        zipf.writestr(f"{basename}_msg_computer.txt", msg_computer)
+        zipf.writestr(f"{basename}_msg_profilazione.txt", msg_profilazione)
+
     zip_buffer.seek(0)
-    
+
+    # pulsante per scaricare l'unico ZIP (contenente anche template + messaggi)
     st.download_button(
-        "📦 Scarica Tutti i CSV (ZIP)",
-        data=zip_buffer,
+        "📦 Scarica Tutti i CSV (ZIP) + anteprima e messaggi",
+        data=zip_buffer.getvalue(),
         file_name=f"{basename}_csv_bundle.zip",
         mime="application/zip"
     )
-    
+
     st.success(f"✅ CSV generati per '{sAM}'")
