@@ -257,14 +257,7 @@ if st.button("Genera CSV"):
         # se per qualche motivo l'header non c'è, appendiamo comunque il valore
         row_profilazione.append(gruppi_profilazione_str)
 
-    msg = (
-        "Ciao.\n"
-        "Si richiede modifiche come da file:\n"
-        f"- {basename}_computer.csv  (oggetti di tipo computer)\n"
-        f"- {basename}_utente.csv  (oggetti di tipo utenze)\n"
-        f"- {basename}_profilazione.csv  (assegnazione/profilazione gruppi)\n\n"
-        f"Archiviati al percorso:\n{ARCHIVE_PATH}\n\n"
-        "Grazie"
+
     )
     msg_utente = (
     "Salve.\n"
@@ -272,6 +265,7 @@ if st.button("Genera CSV"):
     fr"\\srv_dati\AreaCondivisa\DEPSI\IC\Utenze\Interni\{basename}_utente.csv \n"
     "Restiamo in attesa di un vostro riscontro ad attività completata.\n"
     "Saluti"
+    )
 
     msg_computer = (
     "Salve.\n"
@@ -279,6 +273,7 @@ if st.button("Genera CSV"):
     f"\\srv_dati\AreaCondivisa\DEPSI\IC\PC\{basename}_computer.csv\n"
     "Restiamo in attesa di un vostro riscontro ad attività completata.\n"
     "Saluti"
+    )
 
     st.subheader(f"Nuova Utenza AD [{cognome}]")
     st.markdown(msg_utente)
