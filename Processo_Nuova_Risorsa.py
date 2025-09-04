@@ -55,16 +55,18 @@ if not config_file:
 
 ou_options, gruppi, defaults, organigramma = load_config_from_bytes(config_file.read())
 
-# --- Estrazione valori defaults e gruppi O365 ---
+# --- Estrazione valori defaults e gruppi O365 (gestione robusta di ; e più chiavi grp_o365_) ---
 dl_standard = defaults.get("dl_standard", "").split(";") if defaults.get("dl_standard") else []
 dl_vip = defaults.get("dl_vip", "").split(";") if defaults.get("dl_vip") else []
 
+# raccogliamo tutti i valori di default con chiave che inizia per grp_o365_
 o365_groups = []
 for k, v in defaults.items():
     if str(k).startswith("grp_o365_") and v:
         parts = [p.strip() for p in str(v).split(";") if p.strip()]
         for p in parts:
             token = p
+            # correzione automatica: se per errore manca la 'O' iniziale (es. "365 ...")
             if token.startswith("365 "):
                 token = "O" + token
             o365_groups.append(token)
@@ -72,6 +74,9 @@ for k, v in defaults.items():
 grp_foorban = defaults.get("grp_foorban", "")
 grp_salesforce = defaults.get("grp_salesforce", "")
 pillole = defaults.get("pillole", "")
+
+# Percorso di archivio (raw string per evitare escape warnings)
+ARCHIVE_PATH = r"\\\\srv_dati.consip.tesoro.it\AreaCondivisa\DEPSI\IC\AD_Modifiche"
 
 # Utility functions
 def auto_quote(fields, quotechar='"', predicate=lambda s: ' ' in s):
@@ -129,7 +134,7 @@ nome             = st.text_input("Nome").strip().capitalize()
 secondo_nome     = st.text_input("Secondo Nome").strip().capitalize()
 codice_fiscale   = st.text_input("Codice Fiscale", "").strip()
 
-# Dropdown per Sigla Divisione-Area
+# Dropdown per Sigla Divisione-Area da organigramma
 if organigramma:
     dept_label = st.selectbox("Sigla Divisione-Area", ["-- Seleziona --"] + list(organigramma.keys()))
     department = organigramma.get(dept_label, "") if dept_label != "-- Seleziona --" else defaults.get("department_default", "")
@@ -151,6 +156,7 @@ if def_o in ou_vals:
 label_ou = st.selectbox("Tipologia Utente", ou_vals, index=index_default) if ou_vals else st.text_input("Tipologia Utente", "")
 selected_key = list(ou_options.keys())[ou_vals.index(label_ou)] if ou_vals else ""
 ou_value = ou_options[selected_key] if ou_vals else ""
+# inserimento_gruppo lasciato vuoto per il CSV utente (lo useremo solo per costruire il CSV profilazione)
 inserimento_gruppo = ""
 company = defaults.get("company_interna", "")
 
@@ -160,16 +166,55 @@ sm_lines = st.text_area("SM (una per riga)", "").splitlines() if profilazione el
 
 dl_list = dl_standard if selected_key == "utenti_standard" else dl_vip if selected_key == "utenti_vip" else []
 
-# Generazione CSV Utente + Computer + Profilazione
+# Preview Messaggio
+if st.button("Template per Posta Elettronica"):
+    sAM = genera_samaccountname(nome, cognome, secondo_nome, secondo_cognome, False)
+    cn = build_full_name(cognome, secondo_cognome, nome, secondo_nome, False)
+    table_md = (
+        "| Campo             | Valore                                      |\n"
+        "|-------------------|---------------------------------------------|\n"
+        f"| Tipo Utenza       | Remota                                      |\n"
+        f"| Utenza            | {sAM}                                       |\n"
+        f"| Alias             | {sAM}                                       |\n"
+        f"| Display name      | {cn}                                        |\n"
+        f"| Common name       | {cn}                                        |\n"
+        f"| e-mail            | {sAM}@consip.it                              |\n"
+        f"| e-mail secondaria | {sAM}@consipspa.mail.onmicrosoft.com        |\n"
+    )
+    st.markdown("Ciao.  \nRichiedo cortesemente la definizione di una casella di posta come sottoindicato.")
+    st.markdown(table_md)
+    if dl_list:
+        st.markdown(f"Il giorno **{data_operativa}** occorre inserire la casella nelle DL:")
+        for dl in dl_list:
+            st.markdown(f"- {dl}")
+    if profilazione:
+        st.markdown("Profilare su SM:")
+        for sm in sm_lines:
+            st.markdown(f"- {sm}")
+
+    st.markdown("**Aggiungere utenza al gruppo Azure:**")
+    if grp_foorban:
+        st.markdown(f"- {grp_foorban}")
+    if grp_salesforce:
+        st.markdown(f"- {grp_salesforce}")
+    if pillole:
+        st.markdown(f"- canale {pillole}")
+
+    st.markdown("Grazie  \nSaluti")
+
+# Generazione CSV Utente + Computer + Profilazione (ex O365)
 if st.button("Genera CSV"):
     sAM = genera_samaccountname(nome, cognome, secondo_nome, secondo_cognome, False)
     cn = build_full_name(cognome, secondo_cognome, nome, secondo_nome, False)
+    norm_cognome = normalize_name(cognome)
+    norm_secondo = normalize_name(secondo_cognome) if secondo_cognome else ''
     name_parts = [cognome] + ([secondo_cognome] if secondo_cognome else []) + [nome[:1] if nome else ""]
     basename = "_".join([p for p in name_parts if p])
     given = f"{nome} {secondo_nome}".strip()
     surn = f"{cognome} {secondo_cognome}".strip()
     mobile = f"+39 {numero_telefono}" if numero_telefono else ""
 
+    # ---> costruisco row_ut assicurandomi che InserimentoGruppo sia vuoto
     row_ut = [
         sAM, "SI", ou_value, cn, cn, cn, given, surn,
         codice_fiscale, employee_id, department, description or "<PC>",
@@ -181,11 +226,13 @@ if st.button("Genera CSV"):
         description or "", "", f"{sAM}@consip.it", "", mobile, "", cn, "", "", ""
     ]
 
+    # Costruisco la lista dei gruppi di profilazione: o365_groups + inserimento (key "interna")
     existing_o365 = list(o365_groups)
     inserimento_gruppo_val = gruppi.get("interna", "") or ""
+    inser_gr_raw = inserimento_gruppo_val
     inser_list = []
-    if inserimento_gruppo_val:
-        for g in str(inserimento_gruppo_val).split(";"):
+    if inser_gr_raw:
+        for g in str(inser_gr_raw).split(";"):
             gg = g.strip()
             if not gg:
                 continue
@@ -193,11 +240,13 @@ if st.button("Genera CSV"):
                 gg = "O" + gg
             inser_list.append(gg)
 
+    # merged_profilazione evitando duplicati mantenendo ordine
     merged_profilazione = []
     for g in existing_o365 + inser_list:
         if g and g not in merged_profilazione:
             merged_profilazione.append(g)
 
+    # join senza spazi dopo ';' come richiesto dall'utente
     gruppi_profilazione_str = ";".join(merged_profilazione)
 
     row_profilazione = [""] * len(HEADER_UTENTE)
@@ -206,8 +255,10 @@ if st.button("Genera CSV"):
         idx_inserimento = HEADER_UTENTE.index("InserimentoGruppo")
         row_profilazione[idx_inserimento] = gruppi_profilazione_str
     except ValueError:
+        # se per qualche motivo l'header non c'è, appendiamo comunque il valore
         row_profilazione.append(gruppi_profilazione_str)
 
+    # --- messaggi (testo mostrato a video) ---
     msg_utente = (
         "Salve.\n"
         "Vi richiediamo la definizione della utenza nell’AD Consip come dettagliato nei file:\n"
@@ -215,6 +266,7 @@ if st.button("Genera CSV"):
         "Restiamo in attesa di un vostro riscontro ad attività completata.\n"
         "Saluti"
     )
+
     msg_computer = (
         "Salve.\n"
         "Si richiede modifiche come da file:\n"
@@ -222,6 +274,7 @@ if st.button("Genera CSV"):
         "Restiamo in attesa di un vostro riscontro ad attività completata.\n"
         "Saluti"
     )
+
     msg_profilazione = (
         "Salve.\n"
         "Si richiede modifiche come da file:\n"
@@ -230,7 +283,12 @@ if st.button("Genera CSV"):
         "Saluti"
     )
 
-    # --- Preparazione CSV ---
+    # --- mostra a video ---
+    st.subheader(f"Nuova Utenza AD [{cognome}]")
+    st.text(msg_utente)
+    st.subheader("Anteprima CSV Utente")
+    st.dataframe(pd.DataFrame([row_ut], columns=HEADER_UTENTE))
+
     def prepara_csv(row, header):
         buf = io.StringIO()
         w = csv.writer(buf, quoting=csv.QUOTE_NONE, escapechar="\\")
@@ -244,104 +302,102 @@ if st.button("Genera CSV"):
     buf_comp = prepara_csv(row_cp, HEADER_COMPUTER)
     buf_prof = prepara_csv(row_profilazione, HEADER_UTENTE)
 
-    # --- Template HTML per la posta elettronica ---
-    table_rows_html = f"""
-        <tr><td><strong>Tipo Utenza</strong></td><td>Remota</td></tr>
-        <tr><td><strong>Utenza</strong></td><td>{sAM}</td></tr>
-        <tr><td><strong>Alias</strong></td><td>{sAM}</td></tr>
-        <tr><td><strong>Display name</strong></td><td>{cn}</td></tr>
-        <tr><td><strong>Common name</strong></td><td>{cn}</td></tr>
-        <tr><td><strong>e-mail</strong></td><td>{sAM}@consip.it</td></tr>
-        <tr><td><strong>e-mail secondaria</strong></td><td>{sAM}@consipspa.mail.onmicrosoft.com</td></tr>
-    """
+    # download subito sotto anteprima utente
+    st.download_button(
+        "📥 Scarica CSV Utente",
+        data=buf_user.getvalue(),
+        file_name=f"{basename}_utente.csv",
+        mime="text/csv"
+    )
 
-    dl_html = ""
+    st.subheader(f"Modifica AD Computer [{cognome}]")
+    st.text(msg_computer)
+    st.subheader("Anteprima CSV Computer")
+    st.dataframe(pd.DataFrame([row_cp], columns=HEADER_COMPUTER))
+
+    # download subito sotto anteprima computer
+    st.download_button(
+        "📥 Scarica CSV Computer",
+        data=buf_comp.getvalue(),
+        file_name=f"{basename}_computer.csv",
+        mime="text/csv"
+    )
+
+    st.subheader(f"Modifica AD Profilazione [{cognome}]")
+    st.text(msg_profilazione)
+    st.subheader("Anteprima CSV Profilazione")
+    st.dataframe(pd.DataFrame([row_profilazione], columns=HEADER_UTENTE))
+
+    # download subito sotto anteprima profilazione
+    st.download_button(
+        "📥 Scarica CSV Profilazione",
+        data=buf_prof.getvalue(),
+        file_name=f"{basename}_profilazione.csv",
+        mime="text/csv"
+    )
+
+    # -------------------------------------------
+    # Preparo l'anteprima template in formato Markdown (da inserire SOLO nello ZIP)
+    # -------------------------------------------
+    table_md = (
+        "| Campo             | Valore                                      |\n"
+        "|-------------------|---------------------------------------------|\n"
+        f"| Tipo Utenza       | Remota                                      |\n"
+        f"| Utenza            | {sAM}                                       |\n"
+        f"| Alias             | {sAM}                                       |\n"
+        f"| Display name      | {cn}                                        |\n"
+        f"| Common name       | {cn}                                        |\n"
+        f"| e-mail            | {sAM}@consip.it                              |\n"
+        f"| e-mail secondaria | {sAM}@consipspa.mail.onmicrosoft.com        |\n"
+    )
+
+    template_preview_lines = []
+    template_preview_lines.append("Richiesta definizione casella - anteprima template\n")
+    template_preview_lines.append(table_md)
     if dl_list:
-        dl_html = "<h4>DL da aggiungere il giorno {}</h4><ul>{}</ul>".format(
-            data_operativa or "",
-            "".join(f"<li>{dl}</li>" for dl in dl_list)
-        )
+        template_preview_lines.append(f"\nIl giorno {data_operativa} occorre inserire la casella nelle DL:\n")
+        for dl in dl_list:
+            template_preview_lines.append(f"- {dl}\n")
+    if profilazione:
+        template_preview_lines.append("\nProfilare su SM:\n")
+        for sm in sm_lines:
+            template_preview_lines.append(f"- {sm}\n")
 
-    sm_html = ""
-    if profilazione and sm_lines:
-        sm_html = "<h4>Profilare su SM</h4><ul>{}</ul>".format("".join(f"<li>{s}</li>" for s in sm_lines))
-
-    azure_items = []
     if grp_foorban:
-        azure_items.append(grp_foorban)
+        template_preview_lines.append(f"\nAggiungere utenza al gruppo Azure:\n- {grp_foorban}\n")
     if grp_salesforce:
-        azure_items.append(grp_salesforce)
+        template_preview_lines.append(f"- {grp_salesforce}\n")
     if pillole:
-        azure_items.append(f"canale {pillole}")
-    azure_html = ""
-    if azure_items:
-        azure_html = "<h4>Aggiungere utenza al gruppo Azure</h4><ul>{}</ul>".format("".join(f"<li>{a}</li>" for a in azure_items))
+        template_preview_lines.append(f"- canale {pillole}\n")
 
-    template_preview_html = f"""
-    <!doctype html>
-    <html lang="it">
-    <head>
-      <meta charset="utf-8">
-      <title>Anteprima Template - {basename}</title>
-      <style>
-        body {{ font-family: Arial, Helvetica, sans-serif; font-size:14px; }}
-        table {{ border-collapse: collapse; width: 100%; max-width: 800px; }}
-        td, th {{ border: 1px solid #ddd; padding: 8px; vertical-align: top; }}
-        th {{ background-color: #f4f4f4; text-align: left; }}
-        h2, h4 {{ margin: 12px 0 6px; }}
-      </style>
-    </head>
-    <body>
-      <h2>Richiesta definizione casella - anteprima template</h2>
-      <table>
-        <thead><tr><th>Campo</th><th>Valore</th></tr></thead>
-        <tbody>
-          {table_rows_html}
-        </tbody>
-      </table>
-      {dl_html}
-      {sm_html}
-      {azure_html}
-      <p>Grazie<br/>Saluti</p>
-    </body>
-    </html>
-    """
+    # unisco tutto in una stringa markdown
+    template_preview_md = "\n".join(template_preview_lines)
 
-    # File .eml (client di posta)
-    eml_headers = [
-        f"Subject: Richiesta definizione casella - {sAM}",
-        f"From: your.name@consip.it",
-        f"To: destinatario@consip.it",
-        "MIME-Version: 1.0",
-        'Content-Type: multipart/alternative; boundary="BOUNDARY"',
-        "",
-        "--BOUNDARY",
-        "Content-Type: text/html; charset=utf-8",
-        "",
-    ]
-    eml_body = template_preview_html
-    eml_footer = ["", "--BOUNDARY--", ""]
-    template_preview_eml = "\r\n".join(eml_headers + [eml_body] + eml_footer)
-
-    # --- ZIP unico ---
+    # -------------------------------------------
+    # Creo lo ZIP con i 3 CSV + file di anteprima template + 3 messaggi .txt
+    # (i file "msg_*.txt" e "template_preview.md" saranno presenti SOLO nello ZIP)
+    # -------------------------------------------
     zip_buffer = io.BytesIO()
     with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zipf:
+        # CSV
         zipf.writestr(f"{basename}_utente.csv", buf_user.getvalue())
         zipf.writestr(f"{basename}_computer.csv", buf_comp.getvalue())
         zipf.writestr(f"{basename}_profilazione.csv", buf_prof.getvalue())
-        zipf.writestr(f"{basename}_template_preview.html", template_preview_html)
-        zipf.writestr(f"{basename}_template_preview.eml", template_preview_eml)
+        # anteprima template (markdown)
+        zipf.writestr(f"{basename}_template_preview.md", template_preview_md)
+        # messaggi (solo testo)
         zipf.writestr(f"{basename}_msg_utente.txt", msg_utente)
         zipf.writestr(f"{basename}_msg_computer.txt", msg_computer)
         zipf.writestr(f"{basename}_msg_profilazione.txt", msg_profilazione)
 
     zip_buffer.seek(0)
 
+    # pulsante per scaricare l'unico ZIP (contenente anche template + messaggi)
     st.download_button(
-        "📦 Scarica Tutti i CSV + Template (ZIP)",
-        data=zip_buffer,
-        file_name=f"{basename}_bundle.zip",
+        "📦 Scarica Tutti i CSV (ZIP) + anteprima e messaggi",
+        data=zip_buffer.getvalue(),
+        file_name=f"{basename}_csv_bundle.zip",
         mime="application/zip"
     )
 
-    st.success(f"✅ CSV e template generati per '{sAM}'")
+    st.success(f"✅ CSV generati per '{sAM}'")
