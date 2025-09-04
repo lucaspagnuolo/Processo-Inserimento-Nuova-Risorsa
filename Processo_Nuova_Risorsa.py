@@ -269,7 +269,7 @@ if st.button("Genera CSV"):
     msg_utente = (
     "Salve.\n"
     "Vi richiediamo la definizione della utenza nell’AD Consip come dettagliato nei file:\n"
-    f"\\srv_dati\AreaCondivisa\DEPSI\IC\Utenze\Interni\{basename}_utente.csv \n"
+    fr"\\srv_dati\AreaCondivisa\DEPSI\IC\Utenze\Interni\{basename}_utente.csv \n"
     "Restiamo in attesa di un vostro riscontro ad attività completata.\n"
     "Saluti"
 
