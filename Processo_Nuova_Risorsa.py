@@ -257,8 +257,6 @@ if st.button("Genera CSV"):
         # se per qualche motivo l'header non c'è, appendiamo comunque il valore
         row_profilazione.append(gruppi_profilazione_str)
 
-
-    )
     msg_utente = (
     "Salve.\n"
     "Vi richiediamo la definizione della utenza nell’AD Consip come dettagliato nei file:\n"
