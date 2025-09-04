@@ -62,9 +62,13 @@ dl_vip = defaults.get("dl_vip", "").split(";") if defaults.get("dl_vip") else []
 o365_groups = []
 for k, v in defaults.items():
     if str(k).startswith("grp_o365_") and v:
-        # supporto più gruppi separati da ';' nella stessa cella
         parts = [p.strip() for p in str(v).split(";") if p.strip()]
-        o365_groups.extend(parts)
+        for p in parts:
+            token = p
+            # correzione automatica: se per errore manca la 'O' iniziale (es. "365 ...")
+            if token.startswith("365 "):
+                token = "O" + token
+            o365_groups.append(token)
 
 grp_foorban = defaults.get("grp_foorban", "")
 grp_salesforce = defaults.get("grp_salesforce", "")  # <-- lettura grp_salesforce
@@ -151,7 +155,7 @@ if def_o in ou_vals:
 label_ou = st.selectbox("Tipologia Utente", ou_vals, index=index_default) if ou_vals else st.text_input("Tipologia Utente", "")
 selected_key = list(ou_options.keys())[ou_vals.index(label_ou)] if ou_vals else ""
 ou_value = ou_options[selected_key] if ou_vals else ""
-#inserimento_gruppo = gruppi.get("interna", "")
+# inserimento_gruppo lasciato vuoto per il CSV utente (lo useremo solo per costruire il CSV profilazione)
 inserimento_gruppo = ""
 company = defaults.get("company_interna", "")
 
@@ -178,7 +182,6 @@ if st.button("Template per Posta Elettronica"):
     )
     st.markdown("Ciao.  \nRichiedo cortesemente la definizione di una casella di posta come sottoindicato.")
     st.markdown(table_md)
-    #st.markdown("_La lista dei gruppi O365 è stata rimossa da questo template. Verrà generato un CSV separato contenente i gruppi da assegnare all'utenza._")
     if dl_list:
         st.markdown(f"Il giorno **{data_operativa}** occorre inserire la casella nelle DL:")
         for dl in dl_list:
@@ -204,30 +207,45 @@ if st.button("Genera CSV"):
     cn = build_full_name(cognome, secondo_cognome, nome, secondo_nome, False)
     norm_cognome = normalize_name(cognome)
     norm_secondo = normalize_name(secondo_cognome) if secondo_cognome else ''
-    name_parts = [cognome] + ([secondo_cognome] if secondo_cognome else []) + [nome[:1]]
+    name_parts = [cognome] + ([secondo_cognome] if secondo_cognome else []) + [nome[:1] if nome else ""]
     basename = "_".join([p for p in name_parts if p])
     given = f"{nome} {secondo_nome}".strip()
     surn = f"{cognome} {secondo_cognome}".strip()
     mobile = f"+39 {numero_telefono}" if numero_telefono else ""
 
+    # ---> costruisco row_ut assicurandomi che InserimentoGruppo sia vuoto
     row_ut = [
         sAM, "SI", ou_value, cn, cn, cn, given, surn,
         codice_fiscale, employee_id, department, description or "<PC>",
         "No", "", f"{sAM}@consip.it", f"{sAM}@consip.it", mobile,
-        "", inserimento_gruppo, "", "", telephone_number, company
+        "", "", "", "", telephone_number, company
     ]
+
     row_cp = [
         description or "", "", f"{sAM}@consip.it", "", mobile, "", cn, "", "", ""
     ]
 
+    # Costruisco la lista dei gruppi di profilazione: o365_groups + inserimento (key "interna")
     existing_o365 = list(o365_groups)
-    inserimento_gruppo = gruppi.get("interna", "")
-    inser_gr_raw = inserimento_gruppo or ""
-    inser_list = [g.strip() for g in str(inser_gr_raw).split(";") if g.strip()]
-    merged_profilazione = existing_o365[:]
-    for g in inser_list:
-        if g not in merged_profilazione:
+    inserimento_gruppo_val = gruppi.get("interna", "") or ""
+    inser_gr_raw = inserimento_gruppo_val
+    inser_list = []
+    if inser_gr_raw:
+        for g in str(inser_gr_raw).split(";"):
+            gg = g.strip()
+            if not gg:
+                continue
+            if gg.startswith("365 "):
+                gg = "O" + gg
+            inser_list.append(gg)
+
+    # merged_profilazione evitando duplicati mantenendo ordine
+    merged_profilazione = []
+    for g in existing_o365 + inser_list:
+        if g and g not in merged_profilazione:
             merged_profilazione.append(g)
+
+    # join senza spazi dopo ';' come richiesto dall'utente
     gruppi_profilazione_str = ";".join(merged_profilazione)
 
     row_profilazione = [""] * len(HEADER_UTENTE)
@@ -236,6 +254,7 @@ if st.button("Genera CSV"):
         idx_inserimento = HEADER_UTENTE.index("InserimentoGruppo")
         row_profilazione[idx_inserimento] = gruppi_profilazione_str
     except ValueError:
+        # se per qualche motivo l'header non c'è, appendiamo comunque il valore
         row_profilazione.append(gruppi_profilazione_str)
 
     msg = (
