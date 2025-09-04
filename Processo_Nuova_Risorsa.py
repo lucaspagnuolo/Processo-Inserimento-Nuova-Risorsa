@@ -4,6 +4,7 @@ import pandas as pd
 from datetime import datetime, timedelta
 import io
 import unicodedata
+import zipfile
 
 # ------------------------------------------------------------
 # Caricamento configurazione da Excel caricato dall'utente
@@ -258,34 +259,35 @@ if st.button("Genera CSV"):
         row_profilazione.append(gruppi_profilazione_str)
 
     msg_utente = (
-    "Salve.\n"
-    "Vi richiediamo la definizione della utenza nell’AD Consip come dettagliato nei file:\n"
-    fr"\\srv_dati\AreaCondivisa\DEPSI\IC\Utenze\Interni\{basename}_utente.csv \n"
-    "Restiamo in attesa di un vostro riscontro ad attività completata.\n"
-    "Saluti"
+        "Salve.\n"
+        "Vi richiediamo la definizione della utenza nell’AD Consip come dettagliato nei file:\n"
+        f"//srv_dati/AreaCondivisa/DEPSI/IC/Utenze/Interni/{basename}_utente.csv\n"
+        "Restiamo in attesa di un vostro riscontro ad attività completata.\n"
+        "Saluti"
     )
-
+    
     msg_computer = (
-    "Salve.\n"
-    "Si richiede modifiche come da file:\n"
-    f"\\srv_dati\AreaCondivisa\DEPSI\IC\PC\{basename}_computer.csv\n"
-    "Restiamo in attesa di un vostro riscontro ad attività completata.\n"
-    "Saluti"
+        "Salve.\n"
+        "Si richiede modifiche come da file:\n"
+        f"//srv_dati/AreaCondivisa/DEPSI/IC/PC/{basename}_computer.csv\n"
+        "Restiamo in attesa di un vostro riscontro ad attività completata.\n"
+        "Saluti"
     )
-
+    
     st.subheader(f"Nuova Utenza AD [{cognome}]")
-    st.markdown(msg_utente)
+    st.text(msg_utente)
     st.subheader("Anteprima CSV Utente")
     st.dataframe(pd.DataFrame([row_ut], columns=HEADER_UTENTE))
-
+    
     st.subheader(f"Modifica AD Computer [{cognome}]")
-    st.markdown(msg_computer)
+    st.text(msg_computer)
     st.subheader("Anteprima CSV Computer")
     st.dataframe(pd.DataFrame([row_cp], columns=HEADER_COMPUTER))
-
+    
     st.subheader("Anteprima CSV Profilazione")
     st.dataframe(pd.DataFrame([row_profilazione], columns=HEADER_UTENTE))
-
+    
+    
     def prepara_csv(row, header):
         buf = io.StringIO()
         w = csv.writer(buf, quoting=csv.QUOTE_NONE, escapechar="\\")
@@ -294,27 +296,47 @@ if st.button("Genera CSV"):
         w.writerow(quoted)
         buf.seek(0)
         return buf
-
+    
+    
     buf_user = prepara_csv(row_ut, HEADER_UTENTE)
     buf_comp = prepara_csv(row_cp, HEADER_COMPUTER)
     buf_prof = prepara_csv(row_profilazione, HEADER_UTENTE)
-
+    
+    # --- Download singoli ---
     st.download_button(
         "📥 Scarica CSV Utente",
         data=buf_user.getvalue(),
         file_name=f"{basename}_utente.csv",
         mime="text/csv"
     )
+    
     st.download_button(
         "📥 Scarica CSV Computer",
         data=buf_comp.getvalue(),
         file_name=f"{basename}_computer.csv",
         mime="text/csv"
     )
+    
     st.download_button(
         "📥 Scarica CSV Profilazione",
         data=buf_prof.getvalue(),
         file_name=f"{basename}_profilazione.csv",
         mime="text/csv"
     )
+    
+    # --- Download ZIP unico ---
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zipf:
+        zipf.writestr(f"{basename}_utente.csv", buf_user.getvalue())
+        zipf.writestr(f"{basename}_computer.csv", buf_comp.getvalue())
+        zipf.writestr(f"{basename}_profilazione.csv", buf_prof.getvalue())
+    zip_buffer.seek(0)
+    
+    st.download_button(
+        "📦 Scarica Tutti i CSV (ZIP)",
+        data=zip_buffer,
+        file_name=f"{basename}_csv_bundle.zip",
+        mime="application/zip"
+    )
+    
     st.success(f"✅ CSV generati per '{sAM}'")
