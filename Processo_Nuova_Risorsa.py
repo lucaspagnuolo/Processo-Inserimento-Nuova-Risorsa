@@ -266,7 +266,7 @@ if st.button("Genera CSV"):
         f"Archiviati al percorso:\n{ARCHIVE_PATH}\n\n"
         "Grazie"
     )
-    st.subheader(f"Nuova Utenza AD [{norm_cognome}]")
+    st.subheader(f"Nuova Utenza AD [{name_parts}]")
     st.markdown(msg)
 
     st.subheader("Anteprima CSV Utente")
