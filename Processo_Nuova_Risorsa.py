@@ -266,13 +266,30 @@ if st.button("Genera CSV"):
         f"Archiviati al percorso:\n{ARCHIVE_PATH}\n\n"
         "Grazie"
     )
-    st.subheader(f"Nuova Utenza AD [{cognome}]")
-    st.markdown(msg)
+    msg_utente = (
+    "Salve.\n"
+    "Vi richiediamo la definizione della utenza nell’AD Consip come dettagliato nei file:\n"
+    f"\\srv_dati\AreaCondivisa\DEPSI\IC\Utenze\Interni\{basename}_utente.csv\n"
+    "Restiamo in attesa di un vostro riscontro ad attività completata.\n"
+    "Saluti"
 
+    msg_computer = (
+    "Salve.\n"
+    "Si richiede modifiche come da file:\n"
+    f"\\srv_dati\AreaCondivisa\DEPSI\IC\PC\{basename}_computer.csv\n"
+    "Restiamo in attesa di un vostro riscontro ad attività completata.\n"
+    "Saluti"
+
+    st.subheader(f"Nuova Utenza AD [{cognome}]")
+    st.markdown(msg_utente)
     st.subheader("Anteprima CSV Utente")
     st.dataframe(pd.DataFrame([row_ut], columns=HEADER_UTENTE))
+
+    st.subheader(f"Modifica AD Computer [{cognome}]")
+    st.markdown(msg_computer)
     st.subheader("Anteprima CSV Computer")
     st.dataframe(pd.DataFrame([row_cp], columns=HEADER_COMPUTER))
+
     st.subheader("Anteprima CSV Profilazione")
     st.dataframe(pd.DataFrame([row_profilazione], columns=HEADER_UTENTE))
 
