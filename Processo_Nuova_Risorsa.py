@@ -71,12 +71,14 @@ for k, v in defaults.items():
                 token = "O" + token
             o365_groups.append(token)
 
+# --- gruppi Azure e canale (letti dai Defaults)
 grp_foorban = defaults.get("grp_foorban", "")
 grp_salesforce = defaults.get("grp_salesforce", "")
+grp_salesforce_welfare = defaults.get("grp_salesforce_welfare", "")  # <-- NEW
 pillole = defaults.get("pillole", "")
 
 # Percorso di archivio (raw string per evitare escape warnings)
-ARCHIVE_PATH = r"\\\\srv_dati.consip.tesoro.it\AreaCondivisa\DEPSI\IC\AD_Modifiche"
+ARCHIVE_PATH = r"\\srv_dati.consip.tesoro.it\AreaCondivisa\DEPSI\IC\AD_Modifiche"
 
 # Utility functions
 def auto_quote(fields, quotechar='"', predicate=lambda s: ' ' in s):
@@ -192,11 +194,16 @@ if st.button("Template per Posta Elettronica"):
         for sm in sm_lines:
             st.markdown(f"- {sm}")
 
+    # --- Sezione Aggiunta gruppi Azure (visibile anche il Welfare solo per Utenti Standard)
     st.markdown("**Aggiungere utenza al gruppo Azure:**")
     if grp_foorban:
         st.markdown(f"- {grp_foorban}")
     if grp_salesforce:
         st.markdown(f"- {grp_salesforce}")
+    # SOLO per Utenti Standard
+    if selected_key == "utenti_standard" and grp_salesforce_welfare:
+        st.markdown(f"- {grp_salesforce_welfare}")
+
     if pillole:
         st.markdown(f"- canale {pillole}")
 
@@ -246,7 +253,7 @@ if st.button("Genera CSV"):
         if g and g not in merged_profilazione:
             merged_profilazione.append(g)
 
-    # join senza spazi dopo ';' come richiesto dall'utente
+    # join senza spazi dopo ';' come richiesto
     gruppi_profilazione_str = ";".join(merged_profilazione)
 
     row_profilazione = [""] * len(HEADER_UTENTE)
@@ -363,10 +370,19 @@ if st.button("Genera CSV"):
         for sm in sm_lines:
             template_preview_lines.append(f"- {sm}\n")
 
+    # --- Sezione Azure groups con Welfare solo per Utenti Standard
+    azure_group_lines = []
     if grp_foorban:
-        template_preview_lines.append(f"\nAggiungere utenza al gruppo Azure:\n- {grp_foorban}\n")
+        azure_group_lines.append(f"- {grp_foorban}")
     if grp_salesforce:
-        template_preview_lines.append(f"- {grp_salesforce}\n")
+        azure_group_lines.append(f"- {grp_salesforce}")
+    if selected_key == "utenti_standard" and grp_salesforce_welfare:
+        azure_group_lines.append(f"- {grp_salesforce_welfare}")
+
+    if azure_group_lines:
+        template_preview_lines.append("\nAggiungere utenza al gruppo Azure:\n")
+        template_preview_lines.extend(line + "\n" for line in azure_group_lines)
+
     if pillole:
         template_preview_lines.append(f"- canale {pillole}\n")
 
