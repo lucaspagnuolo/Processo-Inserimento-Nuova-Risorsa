@@ -76,6 +76,7 @@ grp_foorban = defaults.get("grp_foorban", "")
 grp_salesforce = defaults.get("grp_salesforce", "")
 grp_salesforce_welfare = defaults.get("grp_salesforce_welfare", "")  # <-- NEW
 pillole = defaults.get("pillole", "")
+intranet_psn = defaults.get("intranet_psn", "")
 
 # Percorso di archivio (raw string per evitare escape warnings)
 ARCHIVE_PATH = r"\\srv_dati.consip.tesoro.it\AreaCondivisa\DEPSI\IC\AD_Modifiche"
