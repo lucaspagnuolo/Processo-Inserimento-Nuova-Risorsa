@@ -201,6 +201,8 @@ if st.button("Template per Posta Elettronica"):
         st.markdown(f"- {grp_foorban}")
     if grp_salesforce:
         st.markdown(f"- {grp_salesforce}")
+    if intranet_psn:
+        st.markdown(f"- {intranet_psn}")
     # SOLO per Utenti Standard
     if selected_key == "utenti_standard" and grp_salesforce_welfare:
         st.markdown(f"- {grp_salesforce_welfare}")
